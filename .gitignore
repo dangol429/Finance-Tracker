@@ -1,0 +1,35 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# ---- Virtual environments ----
+.venv/
+venv/
+env/
+ENV/
+
+# ---- Environment / secrets ----
+# .env holds real DB credentials and (later) the JWT secret — never commit it.
+# .env.example is the committed template with placeholder values.
+.env
+*.env
+!.env.example
+
+# ---- Tooling / IDE ----
+.idea/
+.vscode/
+*.log
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ---- OS ----
+.DS_Store
+Thumbs.db
