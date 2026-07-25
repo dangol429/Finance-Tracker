@@ -1,0 +1,11 @@
+# Core web framework + ASGI server
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+
+# Database: SQLAlchemy ORM + PostgreSQL driver
+sqlalchemy==2.0.36
+psycopg2-binary==2.9.10
+
+# Configuration: load .env and validate settings with pydantic
+python-dotenv==1.0.1
+pydantic-settings==2.7.1
