@@ -1,0 +1,766 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Personal Finance Tracker — Study Guide</title>
+<style>
+  @page { size: A4; margin: 16mm 14mm; }
+
+  :root {
+    --ink:      #1a1d24;
+    --ink-soft: #4a5160;
+    --rule:     #d8dde5;
+    --accent:   #1f5fa8;
+    --code-bg:  #f6f7f9;
+    --warn-bg:  #fff8e6;
+    --warn-br:  #e0a800;
+    --good-bg:  #eef7f0;
+    --good-br:  #2e7d42;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    font-family: "Segoe UI", -apple-system, system-ui, sans-serif;
+    font-size: 10.2pt;
+    line-height: 1.5;
+    color: var(--ink);
+    margin: 0;
+  }
+
+  h1 {
+    font-size: 21pt; line-height: 1.15; margin: 0 0 4px;
+    letter-spacing: -0.02em;
+  }
+  h2 {
+    font-size: 14pt; margin: 26px 0 10px; padding-bottom: 5px;
+    border-bottom: 2px solid var(--accent); color: var(--accent);
+    letter-spacing: -0.01em;
+    break-after: avoid;
+  }
+  h3 {
+    font-size: 11.4pt; margin: 18px 0 6px; color: var(--ink);
+    break-after: avoid;
+  }
+  h4 {
+    font-size: 10.2pt; margin: 14px 0 4px; color: var(--ink-soft);
+    text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600;
+    break-after: avoid;
+  }
+  p { margin: 0 0 8px; }
+  ul, ol { margin: 0 0 8px; padding-left: 20px; }
+  li { margin-bottom: 4px; }
+
+  code {
+    font-family: "Cascadia Mono", Consolas, "Courier New", monospace;
+    font-size: 0.88em;
+    background: var(--code-bg);
+    padding: 1px 4px;
+    border-radius: 3px;
+    border: 1px solid var(--rule);
+  }
+  pre {
+    font-family: "Cascadia Mono", Consolas, "Courier New", monospace;
+    font-size: 8.4pt; line-height: 1.42;
+    background: var(--code-bg);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--accent);
+    border-radius: 4px;
+    padding: 9px 11px;
+    margin: 0 0 10px;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    break-inside: avoid;
+  }
+  pre code { background: none; border: none; padding: 0; font-size: 1em; }
+
+  /* ---- cover ---- */
+  .cover { text-align: left; padding-top: 6mm; margin-bottom: 14px; }
+  .cover .sub { font-size: 12pt; color: var(--ink-soft); margin: 6px 0 0; }
+  .cover .meta { font-size: 9pt; color: var(--ink-soft); margin-top: 12px;
+                 border-top: 1px solid var(--rule); padding-top: 8px; }
+
+  /* ---- callouts ---- */
+  .why {
+    background: var(--good-bg);
+    border-left: 3px solid #2e7d42;
+    padding: 8px 11px; margin: 0 0 10px; border-radius: 0 4px 4px 0;
+    break-inside: avoid;
+  }
+  .why strong:first-child { color: #2e7d42; }
+  .gotcha {
+    background: var(--warn-bg);
+    border-left: 3px solid var(--warn-br);
+    padding: 8px 11px; margin: 0 0 10px; border-radius: 0 4px 4px 0;
+    break-inside: avoid;
+  }
+  .gotcha strong:first-child { color: #96690a; }
+
+  /* ---- tables ---- */
+  table {
+    width: 100%; border-collapse: collapse; margin: 0 0 12px;
+    font-size: 9pt; break-inside: avoid;
+  }
+  th, td {
+    border: 1px solid var(--rule); padding: 5px 7px;
+    text-align: left; vertical-align: top;
+  }
+  th { background: #eef1f6; font-weight: 600; }
+  td code { font-size: 0.86em; }
+
+  /* ---- misc ---- */
+  .file-head {
+    font-family: "Cascadia Mono", Consolas, monospace;
+    font-size: 9.6pt; font-weight: 600;
+    background: #eef1f6; border: 1px solid var(--rule);
+    border-radius: 4px 4px 0 0;
+    padding: 5px 9px; margin: 16px 0 0;
+    border-bottom: none;
+    break-after: avoid;
+  }
+  .file-head + p, .file-head + pre { border-radius: 0 0 4px 4px; margin-top: 0; }
+
+  .diagram {
+    font-family: "Cascadia Mono", Consolas, monospace;
+    font-size: 8.6pt; line-height: 1.35;
+    text-align: center; background: var(--code-bg);
+    border: 1px solid var(--rule); border-radius: 4px;
+    padding: 12px 8px; margin: 0 0 12px; white-space: pre;
+    break-inside: avoid;
+  }
+
+  .page-break { break-before: page; }
+  .tag {
+    display: inline-block; font-size: 7.6pt; font-weight: 700;
+    padding: 1px 6px; border-radius: 9px; vertical-align: 2px;
+    margin-left: 6px; letter-spacing: 0.03em;
+  }
+  .tag-new { background: #dcedd9; color: #2c6b21; }
+  .tag-mod { background: #fdeecf; color: #8a6100; }
+  .toc { font-size: 9.6pt; }
+  .toc li { margin-bottom: 3px; }
+  .qa { break-inside: avoid; margin-bottom: 10px; }
+  .qa .q { font-weight: 600; }
+  .qa .a { color: var(--ink-soft); padding-left: 14px; }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <h1>Personal Finance Tracker — Backend</h1>
+  <p class="sub">A study guide to everything built so far, and why each decision was made.</p>
+  <p class="meta">
+    <strong>Stack:</strong> FastAPI · SQLAlchemy 2.0 · PostgreSQL · Pydantic Settings<br>
+    <strong>Covers:</strong> Milestone 1 (project setup) and Milestone 2 (database models &amp; relationships)<br>
+    <strong>Generated:</strong> 1 August 2026
+  </p>
+</div>
+
+<h2>How to read this</h2>
+<p>
+  Each section covers one file or one idea. Green boxes marked <strong>Why</strong> explain the
+  reasoning behind a choice — those are the parts worth understanding rather than memorising,
+  because they're what an interviewer probes. Yellow boxes marked <strong>Gotcha</strong> are
+  mistakes that are easy to make and hard to debug.
+</p>
+
+<ol class="toc">
+  <li><strong>The big picture</strong> — what exists and how a request flows through it</li>
+  <li><strong>Milestone 1</strong> — configuration, entry point, routing, folder layout</li>
+  <li><strong>Milestone 2, part A</strong> — the database layer (Base, engine, session)</li>
+  <li><strong>Milestone 2, part B</strong> — the four models and their relationships</li>
+  <li><strong>The generated SQL</strong> — what all of this actually produces</li>
+  <li><strong>Verification</strong> — how the models were proven to work</li>
+  <li><strong>Concepts worth knowing cold</strong> — ORM ideas this project demonstrates</li>
+  <li><strong>Interview questions</strong> — with the answers this codebase supports</li>
+  <li><strong>What's deliberately missing</strong> — and what comes next</li>
+</ol>
+
+<h2>1 · The big picture</h2>
+
+<h3>Every file, and what it's for</h3>
+<table>
+  <tr><th style="width:27%">File</th><th style="width:13%">Status</th><th>Its one job</th></tr>
+  <tr><td><code>app/main.py</code></td><td>modified</td><td>Create the FastAPI app, register routers. No logic.</td></tr>
+  <tr><td><code>app/core/config.py</code></td><td>modified</td><td>All settings, typed and validated, loaded once from <code>.env</code>.</td></tr>
+  <tr><td><code>app/db/base.py</code></td><td>new</td><td><code>Base</code> + <code>TimestampMixin</code>. Opens no connection.</td></tr>
+  <tr><td><code>app/db/session.py</code></td><td>new</td><td>Engine (per process), <code>SessionLocal</code>, <code>get_db()</code> (per request).</td></tr>
+  <tr><td><code>app/db/init_db.py</code></td><td>new</td><td>Dev script: <code>python -m app.db.init_db</code> creates tables.</td></tr>
+  <tr><td><code>app/models/enums.py</code></td><td>new</td><td><code>AccountType</code>, <code>TransactionType</code>, and their shared SQL types.</td></tr>
+  <tr><td><code>app/models/user.py</code></td><td>new</td><td>The <code>User</code> model — root of every ownership chain.</td></tr>
+  <tr><td><code>app/models/account.py</code></td><td>new</td><td>The <code>Account</code> model — where money sits.</td></tr>
+  <tr><td><code>app/models/category.py</code></td><td>new</td><td>The <code>Category</code> model — what a transaction was for.</td></tr>
+  <tr><td><code>app/models/transaction.py</code></td><td>new</td><td>The <code>Transaction</code> model — one movement of money.</td></tr>
+  <tr><td><code>app/models/__init__.py</code></td><td>modified</td><td>Imports all models so <code>Base.metadata</code> is complete.</td></tr>
+  <tr><td><code>app/routers/health.py</code></td><td>modified</td><td><code>/health</code> (liveness) and <code>/health/db</code> (readiness).</td></tr>
+  <tr><td><code>app/schemas/</code></td><td>unchanged</td><td>Pydantic request/response shapes. Empty until the CRUD milestone.</td></tr>
+  <tr><td><code>.env.example</code></td><td>modified</td><td>Committed template documenting which variables exist.</td></tr>
+</table>
+
+<h3>How a request flows</h3>
+<div class="diagram">HTTP GET /health/db
+      │
+      ▼
+main.py  ──────────►  registers routers at import time
+      │
+      ▼
+routers/health.py  ──►  Depends(get_db)
+                             │
+                             ▼
+                     db/session.py  ──►  SessionLocal()  ──►  Engine  ──►  pool ──► PostgreSQL
+                             │                                   ▲
+                             │                                   │  configured by
+                             ▼                                   │
+                     yields Session to the handler        core/config.py (.env)
+                             │
+                     handler runs `SELECT 1`
+                             │
+                     `finally: db.close()`  ──►  connection returns to the pool</div>
+
+<h2 class="page-break">2 · Milestone 1 — the skeleton</h2>
+
+<p>
+  The guiding idea is <strong>separation of concerns</strong>: each folder owns one job, so a change
+  in one layer doesn't ripple through the others.
+</p>
+
+<div class="file-head">app/core/config.py — one place for configuration</div>
+<pre><code>class Settings(BaseSettings):
+    app_name: str = "Personal Finance Tracker"
+    debug: bool = False
+
+    database_url: str | None = None      # wins if set
+    postgres_user: str = "finance"       # otherwise assembled from parts
+    postgres_port: int = 5432
+    ...
+
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    @property
+    def sqlalchemy_url(self) -> str:
+        if self.database_url:
+            return self.database_url
+        return f"postgresql+psycopg2://{self.postgres_user}:..."
+
+settings = Settings()   # instantiated once, shared everywhere</code></pre>
+
+<div class="why">
+  <strong>Why a typed Settings class instead of <code>os.environ</code>?</strong>
+  Three things you get for free. <em>Validation</em> — <code>postgres_port: int</code> means a
+  non-numeric value fails loudly at startup instead of surfacing later as a confusing connection
+  error. <em>Discoverability</em> — the class is the complete list of every knob the app has.
+  <em>One source of truth</em> — nothing reads the environment scattered across the codebase, so
+  there's never a question of where a value came from.
+</div>
+
+<div class="why">
+  <strong>Why support both <code>DATABASE_URL</code> and <code>POSTGRES_*</code> parts?</strong>
+  They serve different situations. The individual parts are convenient locally; a single URL is
+  what hosting platforms, Docker Compose and CI actually hand you. Supporting both means deploying
+  doesn't require reshaping the config. <code>sqlalchemy_url</code> is a <em>property</em> so the
+  precedence rule lives in exactly one place — if every caller assembled the string itself, each
+  would be a chance to get the precedence subtly wrong.
+</div>
+
+<div class="why">
+  <strong>Why <code>settings = Settings()</code> at module level?</strong>
+  Python caches modules, so every <code>from app.core.config import settings</code> returns the same
+  object. The <code>.env</code> file is parsed once per process and the whole app provably agrees on
+  what the configuration is.
+</div>
+
+<div class="file-head">app/main.py — the entry point stays thin</div>
+<pre><code>import app.models  # noqa: F401  ← side-effect import, see below
+
+app = FastAPI(title=settings.app_name, debug=settings.debug)
+app.include_router(health.router)</code></pre>
+
+<div class="why">
+  <strong>Why <code>include_router</code> instead of defining routes here?</strong>
+  Each router owns its own URLs and handlers, so adding a feature means writing a
+  <em>new file</em> plus one line here — not growing this one into a thousand-line monolith.
+  Note the dependency arrow: <code>main.py</code> imports routers, never the reverse. Keeping it
+  pointing one way is what prevents circular imports as the app grows.
+</div>
+
+<div class="gotcha">
+  <strong>Gotcha — the <code>import app.models</code> line looks unused.</strong>
+  It is imported purely for its <em>side effect</em>: importing the package registers every model
+  class in SQLAlchemy's mapper registry. Without it, the first query touching a relationship fails
+  because <code>Mapped["Account"]</code> can't be resolved to a class. A linter will flag it as an
+  unused import, which is exactly what <code>&#35; noqa: F401</code> silences. It does <em>not</em>
+  create tables.
+</div>
+
+<h3>models/ vs schemas/ — the split interviewers probe</h3>
+<table>
+  <tr><th style="width:18%"></th><th style="width:41%"><code>app/models/</code></th><th><code>app/schemas/</code></th></tr>
+  <tr><td><strong>Library</strong></td><td>SQLAlchemy</td><td>Pydantic</td></tr>
+  <tr><td><strong>Answers</strong></td><td>How is data <em>stored</em>?</td><td>What does the API <em>accept and return</em>?</td></tr>
+  <tr><td><strong>Changing it</strong></td><td>Needs a migration</td><td>Changes the public API contract</td></tr>
+</table>
+
+<div class="why">
+  <strong>Why not use one class for both?</strong> Because the two evolve independently. The
+  concrete example already in this codebase: <code>User.hashed_password</code> exists as a column
+  but must never appear in a response. With the split, the response schema simply doesn't declare
+  the field. Merge them, and every new database column silently becomes a public API change — and
+  one day that column is a password hash.
+</div>
+
+<h2 class="page-break">3 · Milestone 2A — the database layer</h2>
+
+<div class="file-head">app/db/base.py — the declarative Base</div>
+<pre><code>class Base(DeclarativeBase):
+    """Shared parent of all ORM models."""
+
+
+class TimestampMixin:
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(),
+        onupdate=func.now(), nullable=False)</code></pre>
+
+<p>Subclassing <code>DeclarativeBase</code> gives every model two shared things:</p>
+<ul>
+  <li><strong><code>registry</code></strong> — how a string reference like <code>"User"</code> in a
+      relationship gets resolved to the actual class.</li>
+  <li><strong><code>metadata</code></strong> — the collected table definitions that
+      <code>create_all</code> and Alembic read.</li>
+</ul>
+
+<div class="why">
+  <strong>Why is <code>Base</code> in its own file, away from the engine?</strong>
+  So importing <code>Base</code> never constructs a database connection. That separation is what
+  lets tests, migrations and tooling import the metadata without valid database settings. (This was
+  a real fix during the build: <code>app/db/__init__.py</code> originally re-exported the session,
+  which quietly made importing a model require a working <code>DATABASE_URL</code>.)
+</div>
+
+<div class="why">
+  <strong>Why <code>server_default</code> rather than a Python default?</strong>
+  <code>server_default=func.now()</code> puts <code>DEFAULT now()</code> in the actual
+  <code>CREATE TABLE</code>, so rows written by a migration or a manual <code>psql</code> INSERT get
+  timestamps too. A Python-side default only applies when the ORM does the insert — anything
+  bypassing it leaves NULLs.
+</div>
+
+<div class="why">
+  <strong>Why a mixin instead of putting the columns on <code>Base</code>?</strong>
+  A mixin describes a <em>capability</em>, not a kind of thing. Models opt in by inheriting it.
+  Put it on <code>Base</code> and every future table — including join tables and lookup tables that
+  don't want them — is forced to carry both columns.
+</div>
+
+<div class="file-head">app/db/session.py — engine and sessions</div>
+<pre><code>engine = create_engine(settings.sqlalchemy_url, pool_pre_ping=True,
+                       echo=settings.debug, future=True)
+
+SessionLocal = sessionmaker(bind=engine, autoflush=False,
+                            autocommit=False, expire_on_commit=False)
+
+def get_db() -> Generator[Session, None, None]:
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()</code></pre>
+
+<div class="why">
+  <strong>The single most important idea here — two different lifetimes.</strong>
+  <strong>One <code>Engine</code> per process</strong>: it owns the connection pool, so it's created
+  once at import. <strong>One <code>Session</code> per request</strong>: it owns a unit of work.
+  Mixing these up is the classic SQLAlchemy mistake — a long-lived session accumulates stale objects
+  and holds a connection open; a per-request engine throws away the pool every time, making every
+  request pay full TCP-and-authentication cost.
+</div>
+
+<table>
+  <tr><th style="width:32%">Setting</th><th>Why</th></tr>
+  <tr><td><code>pool_pre_ping=True</code></td><td>Cheaply checks a pooled connection is alive before handing it out. A connection dropped by Postgres (restart, idle timeout) becomes a silent reconnect instead of a random mid-request error.</td></tr>
+  <tr><td><code>echo=settings.debug</code></td><td>Ties SQL logging to the existing DEBUG flag — <code>DEBUG=true</code> shows you every query the ORM emits, which is genuinely useful while learning.</td></tr>
+  <tr><td><code>autocommit=False</code></td><td>Transactions are explicit. You decide when work is durable.</td></tr>
+  <tr><td><code>autoflush=False</code></td><td>Stops SQLAlchemy silently emitting pending INSERTs before unrelated queries — predictable ordering, fewer surprise constraint errors mid-function.</td></tr>
+  <tr><td><code>expire_on_commit=False</code></td><td>See the gotcha below.</td></tr>
+</table>
+
+<div class="gotcha">
+  <strong>Gotcha — "Instance is not bound to a Session".</strong>
+  With SQLAlchemy's default <code>expire_on_commit=True</code>, every attribute is expired after
+  <code>commit()</code>, so the next attribute read fires a fresh SELECT. If the session has already
+  closed — which is exactly what happens when you return an ORM object from a FastAPI route — that
+  raises. Setting it to <code>False</code> keeps attributes readable after commit and is why this
+  error won't bite you here.
+</div>
+
+<div class="why">
+  <strong>Why does <code>get_db</code> use <code>try/finally</code> but never commit?</strong>
+  The <code>finally</code> guarantees the connection returns to the pool whether the route returns
+  or raises — otherwise a single unhandled exception leaks a connection, and enough of those
+  exhaust the pool and hang the app. It deliberately does <em>not</em> commit: a dependency
+  shouldn't decide that a half-finished request is worth persisting. That's the handler's call.
+</div>
+
+<div class="file-head">app/db/init_db.py — creating the tables</div>
+<pre><code>import app.models        # side effect: populate Base.metadata
+Base.metadata.create_all(bind=engine)</code></pre>
+
+<div class="why">
+  <strong>Why a script rather than something <code>main.py</code> runs at startup?</strong>
+  Schema changes are a deploy-time decision. A web app that mutates the schema every time a worker
+  boots will, under any multi-worker setup, race itself into a half-created schema.
+</div>
+
+<div class="gotcha">
+  <strong>Gotcha — <code>create_all</code> only CREATEs; it never ALTERs.</strong>
+  It issues <code>CREATE TABLE</code> for tables that don't exist and skips the rest. Add a column
+  to a model and re-run it, and nothing happens — no error, no new column. That silent no-op is
+  precisely where Alembic migrations become mandatory rather than optional.
+</div>
+
+<h2 class="page-break">4 · Milestone 2B — the four models</h2>
+
+<div class="diagram">   ┌────────┐
+   │  User  │  the root of every ownership chain
+   └───┬────┘
+       │ 1
+       ├──────────────┬─────────────────────┐
+       │ many         │ many                │ many
+   ┌───▼─────┐   ┌────▼──────┐        ┌─────▼────────┐
+   │ Account │   │ Category  │        │ Transaction  │
+   └───┬─────┘   └────┬──────┘        └──────────────┘
+       │ 1            │ 1                    ▲  ▲
+       │              │                      │  │
+       └──────────────┴──────────────────────┘  │
+            a Transaction belongs to ───────────┘
+            1 account + 0-or-1 category</div>
+
+<table>
+  <tr><th style="width:17%">Table</th><th style="width:26%">Belongs to</th><th>Key columns</th></tr>
+  <tr><td><code>users</code></td><td>—</td><td><code>email</code> (unique), <code>hashed_password</code>, <code>is_active</code></td></tr>
+  <tr><td><code>accounts</code></td><td>user</td><td><code>name</code>, <code>type</code>, <code>balance NUMERIC(12,2)</code>, <code>currency</code></td></tr>
+  <tr><td><code>categories</code></td><td>user</td><td><code>name</code>, <code>type</code> (income/expense)</td></tr>
+  <tr><td><code>transactions</code></td><td>user + account + <em>optional</em> category</td><td><code>amount NUMERIC(12,2)</code>, <code>type</code>, <code>occurred_on</code>, <code>description</code></td></tr>
+</table>
+
+<h3>Relationships — the mechanics</h3>
+<pre><code># On User (the "one" side)          # On Account (the "many" side)
+accounts: Mapped[list[Account]] = \   owner: Mapped[User] = \
+    relationship(                         relationship(
+        back_populates="owner",               back_populates="accounts")
+        cascade="all, delete-orphan",
+        passive_deletes=True)</code></pre>
+
+<div class="why">
+  <strong><code>relationship()</code> creates no column.</strong> The foreign key lives on the
+  <em>child</em> table (<code>accounts.user_id</code>) — that is what "one-to-many" means physically.
+  <code>relationship()</code> is a Python-level convenience that turns that foreign key into an
+  attribute you can read and append to.
+</div>
+
+<div class="why">
+  <strong>The annotation declares the direction.</strong>
+  <code>Mapped[list[Account]]</code> (a collection) is the "one" side;
+  <code>Mapped[User]</code> (singular) is the "many" side. SQLAlchemy reads the type hint to decide
+  — the same function call means different things depending on the annotation.
+</div>
+
+<div class="why">
+  <strong><code>back_populates</code> makes both ends one relationship.</strong>
+  Naming the other side's attribute means <code>user.accounts.append(acct)</code> also sets
+  <code>acct.owner</code>. Omit it and you get two independent relationships that can silently
+  disagree in memory until you reload from the database.
+</div>
+
+<h3>Cascades — declared twice, on purpose</h3>
+<table>
+  <tr><th style="width:34%">Where</th><th>What it does</th></tr>
+  <tr><td><code>ondelete="CASCADE"</code> on the ForeignKey</td><td>The <strong>database</strong> enforces it. Survives raw SQL, migrations, and any other client that touches the DB.</td></tr>
+  <tr><td><code>cascade="all, delete-orphan"</code> on the relationship</td><td>Keeps the <strong>in-memory</strong> object graph consistent in the current session. <code>delete-orphan</code> also means removing a child from the list deletes it, rather than leaving it pointing at nothing.</td></tr>
+  <tr><td><code>passive_deletes=True</code></td><td>Tells SQLAlchemy to <em>trust</em> the database cascade instead of loading every child row into memory to delete them one at a time. Without it, deleting a user with 10,000 transactions issues 10,000 DELETEs.</td></tr>
+</table>
+
+<div class="why">
+  <strong>Why <code>Category.transactions</code> deliberately omits <code>delete-orphan</code>.</strong>
+  Deleting a category must not delete the transactions filed under it. The foreign key on the other
+  side is <code>ON DELETE SET NULL</code>, so those rows survive as uncategorized history.
+  This asymmetry is intentional and is the clearest example in the codebase of a cascade being a
+  <em>business</em> decision, not a technical default.
+</div>
+
+<h3 class="page-break">The decisions worth defending</h3>
+
+<div class="why">
+  <strong>1 · <code>Numeric</code>, never <code>Float</code>, for money.</strong>
+  Floats are binary — <code>0.1 + 0.2 != 0.3</code> — and those fractions of a cent compound across
+  a ledger until a balance is visibly wrong. <code>NUMERIC(12, 2)</code> is exact decimal (10 digits
+  before the point, exactly 2 after) and maps to Python's <code>Decimal</code>.
+  <em>If you remember one thing from this project, make it this one.</em>
+</div>
+
+<div class="why">
+  <strong>2 · Positive <code>amount</code> + a <code>type</code> enum, not signed amounts.</strong>
+  Direction lives in a column you can index, filter and <code>GROUP BY</code>. A
+  <code>CHECK (amount &gt; 0)</code> constraint then makes "negative expense" — a row that would
+  silently <em>reduce</em> a spending total — unrepresentable rather than merely discouraged.
+</div>
+
+<div class="why">
+  <strong>3 · <code>transactions.user_id</code> is denormalized.</strong>
+  It's reachable via <code>account.user_id</code>, so it's redundant on paper. It earns its place
+  because ownership checks and the transaction feed are the hot path, and this turns them into one
+  indexed scan instead of a join on every request. <strong>Be honest about the cost:</strong> it
+  creates a real invariant the service layer must uphold — a transaction's user must match its
+  account's user. Naming that trade-off is the answer; pretending there isn't one isn't.
+</div>
+
+<div class="why">
+  <strong>4 · Categories are per-user, not global.</strong>
+  A shared table would put one person's custom "Side Hustle" category in everyone's dropdown, and
+  renaming it would relabel strangers' reports. Duplicated "Groceries" rows cost a few hundred
+  bytes; the alternative leaks data between accounts.
+</div>
+
+<div class="why">
+  <strong>5 · <code>category_id</code> is nullable; the other two FKs aren't.</strong>
+  A just-imported transaction is legitimately uncategorized, and deleting a category must not erase
+  spending history. Hence <code>ON DELETE SET NULL</code> there, versus <code>ON DELETE CASCADE</code>
+  for user and account.
+</div>
+
+<div class="why">
+  <strong>6 · One composite index, not three single-column ones.</strong>
+  <code>(user_id, occurred_on)</code> serves "my transactions, newest first" — filter and sort from
+  one index, no sort step — <em>and</em> covers plain <code>WHERE user_id = ?</code> on its own,
+  because an index is usable by any query constraining a <strong>prefix</strong> of its columns.
+  Separate indexes on those columns would be dead weight that every INSERT still maintains.
+</div>
+
+<div class="why">
+  <strong>7 · Unique constraints are scoped to the owner.</strong>
+  <code>UNIQUE (user_id, name)</code> on accounts and categories: you can't have two accounts called
+  "Chase Checking", but two different users obviously can. Scoping uniqueness to the owner is the
+  difference between a sensible rule and a global name grab.
+</div>
+
+<div class="why">
+  <strong>8 · <code>Date</code>, not <code>DateTime</code>, for <code>occurred_on</code>.</strong>
+  This is the day the money moved, as the bank reports it. Storing a spurious <code>00:00:00</code>
+  invites timezone bugs where a purchase lands in the wrong month. <code>created_at</code> separately
+  records when the <em>row</em> was written — two genuinely different facts.
+</div>
+
+<div class="gotcha">
+  <strong>9 · Gotcha — enum SQL types must be bound to the metadata once.</strong>
+  On PostgreSQL an enum is a <em>database object</em>, not a column modifier. Two columns each
+  building their own <code>Enum(TransactionType, name="transaction_type")</code> makes
+  <code>create_all</code> emit <code>CREATE TYPE</code> twice — and the second one fails. The fix is
+  to construct the type once with <code>metadata=Base.metadata</code> and share it:
+  <pre style="margin:6px 0 0"><code>transaction_type_enum = SAEnum(
+    TransactionType, name="transaction_type", metadata=Base.metadata,
+    values_callable=lambda c: [m.value for m in c])</code></pre>
+  <code>values_callable</code> stores the <em>values</em> (<code>"credit_card"</code>) rather than
+  the Python member names (<code>"CREDIT_CARD"</code>), so the data reads sensibly in psql.
+</div>
+
+<div class="why">
+  <strong>10 · Why <code>str, Enum</code> and not plain <code>Enum</code>?</strong>
+  A <code>class TransactionType(str, Enum)</code> member <em>is</em> a string: it serializes straight
+  to JSON and compares equal to <code>"expense"</code>, while still giving autocomplete and a
+  typo-proof reference in Python.
+</div>
+
+<h3>The circular-import problem, and how it's solved</h3>
+<p>
+  Four models reference each other. <code>User</code> needs <code>Account</code>,
+  <code>Account</code> needs <code>User</code> — a plain import cycle Python would reject.
+</p>
+<pre><code>from __future__ import annotations          # 1. all annotations become strings
+
+if TYPE_CHECKING:                            # 2. real import for type checkers only,
+    from app.models.account import Account   #    erased at runtime
+
+accounts: Mapped[list[Account]] = relationship(...)   # 3. SQLAlchemy resolves
+                                                      #    "Account" via the registry</code></pre>
+<p>
+  All three layers cooperate: the type checker sees real classes, the runtime sees only strings, and
+  SQLAlchemy looks the name up in <code>Base.registry</code> when mappers are configured. This is
+  also why <code>app/models/__init__.py</code> importing every model matters — a class that was
+  never imported isn't in the registry, and the lookup fails.
+</p>
+
+<h2 class="page-break">5 · The SQL this actually produces</h2>
+<p>Generated from the models with a mock engine — this is what <code>create_all</code> sends to PostgreSQL:</p>
+<pre><code>CREATE TYPE account_type AS ENUM ('checking','savings','credit_card','cash','investment');
+CREATE TYPE transaction_type AS ENUM ('income','expense');
+
+CREATE TABLE users (
+    id SERIAL NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    full_name VARCHAR(255),
+    hashed_password VARCHAR(255) NOT NULL,
+    is_active BOOLEAN NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+    PRIMARY KEY (id)
+);
+CREATE UNIQUE INDEX ix_users_email ON users (email);
+
+CREATE TABLE accounts (
+    id SERIAL NOT NULL,
+    user_id INTEGER NOT NULL,
+    name VARCHAR(120) NOT NULL,
+    type account_type NOT NULL,
+    balance NUMERIC(12, 2) DEFAULT '0.00' NOT NULL,
+    currency VARCHAR(3) DEFAULT 'USD' NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+    PRIMARY KEY (id),
+    CONSTRAINT uq_accounts_user_id_name UNIQUE (user_id, name),
+    FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE CASCADE
+);
+CREATE INDEX ix_accounts_user_id ON accounts (user_id);
+
+CREATE TABLE categories (
+    id SERIAL NOT NULL,
+    user_id INTEGER NOT NULL,
+    name VARCHAR(80) NOT NULL,
+    type transaction_type NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+    PRIMARY KEY (id),
+    CONSTRAINT uq_categories_user_id_name UNIQUE (user_id, name),
+    FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE CASCADE
+);
+CREATE INDEX ix_categories_user_id ON categories (user_id);
+
+CREATE TABLE transactions (
+    id SERIAL NOT NULL,
+    user_id INTEGER NOT NULL,
+    account_id INTEGER NOT NULL,
+    category_id INTEGER,                      -- nullable: uncategorized is valid
+    amount NUMERIC(12, 2) NOT NULL,
+    type transaction_type NOT NULL,
+    description VARCHAR(255),
+    occurred_on DATE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+    PRIMARY KEY (id),
+    CONSTRAINT ck_transactions_amount_positive CHECK (amount > 0),
+    FOREIGN KEY(user_id)     REFERENCES users (id)      ON DELETE CASCADE,
+    FOREIGN KEY(account_id)  REFERENCES accounts (id)   ON DELETE CASCADE,
+    FOREIGN KEY(category_id) REFERENCES categories (id) ON DELETE SET NULL
+);
+CREATE INDEX ix_transactions_user_id_occurred_on ON transactions (user_id, occurred_on);
+CREATE INDEX ix_transactions_account_id  ON transactions (account_id);
+CREATE INDEX ix_transactions_category_id ON transactions (category_id);</code></pre>
+
+<div class="gotcha">
+  <strong>Note — PostgreSQL does not index foreign keys automatically.</strong>
+  It creates an index for a PRIMARY KEY and for UNIQUE, but a plain FK column gets nothing. That's
+  why <code>index=True</code> appears explicitly on the FK columns: without it, "all accounts for
+  this user" is a full table scan.
+</div>
+
+<h2>6 · How this was verified</h2>
+<p>
+  The models were built against a throwaway in-memory SQLite database (with
+  <code>PRAGMA foreign_keys=ON</code>, since SQLite doesn't enforce FKs by default) so every claim
+  above is tested rather than assumed:
+</p>
+<table>
+  <tr><th style="width:52%">Check</th><th>Result</th></tr>
+  <tr><td>All four tables present in <code>Base.metadata</code></td><td>pass</td></tr>
+  <tr><td><code>back_populates</code> works in both directions</td><td>pass</td></tr>
+  <tr><td>Four-way join User → Transaction → Account → Category</td><td>pass</td></tr>
+  <tr><td><code>CHECK (amount &gt; 0)</code> rejects a negative amount</td><td>pass — IntegrityError</td></tr>
+  <tr><td><code>UNIQUE (user_id, name)</code> rejects a duplicate account name</td><td>pass — IntegrityError</td></tr>
+  <tr><td>Deleting a category leaves its transaction alive with <code>category_id = NULL</code></td><td>pass</td></tr>
+  <tr><td>Deleting a user cascades all four tables to zero rows</td><td>pass</td></tr>
+  <tr><td><code>/health/db</code> returns 503 (not 500) when the DB is unreachable</td><td>pass</td></tr>
+  <tr><td>Models import cleanly even with an invalid <code>DATABASE_URL</code></td><td>pass</td></tr>
+</table>
+<p>
+  <strong>Not yet verified against a live PostgreSQL server</strong> — nothing was listening on
+  <code>localhost:5432</code>, so <code>python -m app.db.init_db</code> could not complete. Run it
+  once your server is up; it now prints a one-line reason instead of a 60-line traceback.
+</p>
+
+<h2>7 · Liveness vs readiness</h2>
+<pre><code>@router.get("/health")        # liveness  — is the process up?
+def health_check(): return {"status": "ok"}
+
+@router.get("/health/db")     # readiness — can it reach PostgreSQL?
+def db_health_check(db: Session = Depends(get_db)):
+    try:
+        db.execute(text("SELECT 1"))
+    except SQLAlchemyError as exc:
+        raise HTTPException(status_code=503, detail="database unavailable") from exc
+    return {"status": "ok", "database": "connected"}</code></pre>
+
+<div class="why">
+  <strong>Why two endpoints, and why 503 rather than 500?</strong>
+  Liveness answers "should this container be <em>restarted</em>?"; readiness answers "should traffic
+  be <em>routed</em> here?". A dropped database connection is the second, not the first — collapse
+  them and a brief DB blip gets your perfectly healthy app killed and restarted. <code>503</code>
+  says "the app is fine, its dependency isn't", which is what tells a load balancer to route
+  elsewhere and retry; <code>500</code> would say the app itself is broken.
+</div>
+
+<h2 class="page-break">8 · Interview questions this codebase answers</h2>
+
+<div class="qa"><p class="q">Q. Why not store money as a float?</p>
+<p class="a">A. Floats are binary and can't represent most decimal fractions exactly — <code>0.1 + 0.2 != 0.3</code>. Across a ledger those errors compound into a visibly wrong balance. <code>NUMERIC(12,2)</code> is exact decimal and maps to Python's <code>Decimal</code>.</p></div>
+
+<div class="qa"><p class="q">Q. What's the difference between a SQLAlchemy model and a Pydantic schema?</p>
+<p class="a">A. The model describes how data is <em>stored</em>; the schema describes what the API <em>accepts and returns</em>. Keeping them separate lets an internal column like <code>hashed_password</code> exist without ever appearing in a response, and lets the DB shape and the API contract evolve independently.</p></div>
+
+<div class="qa"><p class="q">Q. What does <code>back_populates</code> actually do?</p>
+<p class="a">A. It links the two ends of one relationship so assigning either side updates both in memory. Without it you have two independent relationships that can silently disagree until you reload from the database.</p></div>
+
+<div class="qa"><p class="q">Q. You set the cascade in two places. Isn't that redundant?</p>
+<p class="a">A. No — they cover different layers. <code>ondelete</code> on the ForeignKey is the database enforcing it, which survives raw SQL and other clients. <code>cascade</code> on the relationship keeps the in-memory object graph consistent within the session. <code>passive_deletes=True</code> then lets the DB do the bulk work instead of SQLAlchemy loading every child row.</p></div>
+
+<div class="qa"><p class="q">Q. Why is <code>user_id</code> on transactions when you could join through accounts?</p>
+<p class="a">A. It's deliberate denormalization. Ownership checks and the transaction feed are the hot path, and this makes them a single indexed scan rather than a join on every request. The cost is an invariant the service layer must maintain — the transaction's user must match its account's user.</p></div>
+
+<div class="qa"><p class="q">Q. Why does one foreign key allow NULL when the others don't?</p>
+<p class="a">A. Nullability encodes a business rule. A transaction must have an owner and an account, but "uncategorized" is a legitimate state — and deleting a category shouldn't erase spending history, so that FK is <code>ON DELETE SET NULL</code> while the others cascade.</p></div>
+
+<div class="qa"><p class="q">Q. Why one composite index instead of indexing each column?</p>
+<p class="a">A. An index is usable by any query constraining a <em>prefix</em> of its columns, so <code>(user_id, occurred_on)</code> already covers <code>WHERE user_id = ?</code>. A separate index on <code>user_id</code> would add nothing while still costing write time on every INSERT.</p></div>
+
+<div class="qa"><p class="q">Q. How does the app avoid circular imports between models that reference each other?</p>
+<p class="a">A. Three things together: <code>from __future__ import annotations</code> makes all annotations strings; the real imports sit under <code>if TYPE_CHECKING</code> so they're erased at runtime; and SQLAlchemy resolves the string name through <code>Base.registry</code>. That's also why <code>app/models/__init__.py</code> imports every model — an unimported class isn't in the registry.</p></div>
+
+<div class="qa"><p class="q">Q. Why is the engine created once but the session created per request?</p>
+<p class="a">A. They own different things. The engine owns the connection pool, which should be shared and long-lived. The session owns a unit of work, which should be short-lived and isolated — a long-lived session accumulates stale objects and holds a connection open.</p></div>
+
+<div class="qa"><p class="q">Q. Why not call <code>create_all()</code> on application startup?</p>
+<p class="a">A. Schema changes are a deploy-time decision, and multiple workers booting at once would race into a half-created schema. It's also insufficient — <code>create_all</code> never ALTERs an existing table, so the first column change silently does nothing. That's where Alembic takes over.</p></div>
+
+<h2>9 · What's deliberately missing — and what's next</h2>
+<p>
+  There is no service/repository layer, no dependency-injection framework, and no Alembic yet. A
+  project of this size doesn't need those abstractions, and adding them early is over-engineering.
+  The structure leaves clean seams to introduce them <em>if</em> the project grows.
+  <strong>Being able to say why you stopped here is as much the point as the structure itself.</strong>
+</p>
+
+<p>The honest caveat: <code>create_all</code> gets you a schema, not schema <em>evolution</em>. The
+moment a column changes on a database holding real rows, Alembic stops being optional.</p>
+
+<h4>Likely next milestones</h4>
+<ol>
+  <li><strong>Pydantic schemas + CRUD endpoints</strong> — fills the empty <code>schemas/</code>
+      folder and finally exercises <code>get_db</code> for real reads and writes.</li>
+  <li><strong>Alembic migrations</strong> — replaces <code>init_db.py</code> as the way the schema changes.</li>
+  <li><strong>JWT auth</strong> — gives <code>hashed_password</code> and <code>is_active</code> their purpose,
+      and turns every <code>user_id</code> column into an enforced authorization check.</li>
+  <li><strong>Docker</strong> — one <code>DATABASE_URL</code> pointing at a Postgres container, which
+      is exactly why config.py supports the single-URL form.</li>
+</ol>
+
+</body>
+</html>

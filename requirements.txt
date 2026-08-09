@@ -9,3 +9,22 @@ psycopg2-binary==2.9.10
 # Configuration: load .env and validate settings with pydantic
 python-dotenv==1.0.1
 pydantic-settings==2.7.1
+
+# Auth: password hashing + JSON Web Tokens
+#
+# bcrypt directly, not passlib. Passlib is the classic tutorial choice but has
+# been unmaintained since 2020, and its bcrypt backend reads an attribute
+# (`bcrypt.__about__`) that bcrypt 4.1 removed — so it logs a spurious error on
+# every hash. The bcrypt package alone is two function calls; the wrapper isn't
+# earning its keep.
+bcrypt==4.2.1
+# PyJWT, not python-jose. Both encode/decode JWTs; PyJWT is actively maintained
+# and is what FastAPI's own docs moved to.
+pyjwt==2.10.1
+# Parses form-encoded request bodies. Required by OAuth2PasswordRequestForm —
+# FastAPI raises at import time without it (see routers/auth.py for why login
+# takes a form rather than JSON).
+python-multipart==0.0.20
+# Backs Pydantic's `EmailStr`. Pydantic keeps it optional because the dependency
+# does real DNS-capable parsing, so you opt in only if you use the type.
+email-validator==2.2.0
