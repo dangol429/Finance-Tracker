@@ -15,10 +15,18 @@ is just a shorter import line.
 """
 
 from app.schemas.token import Token
+from app.schemas.transaction import (
+    TransactionCreate,
+    TransactionRead,
+    TransactionUpdate,
+)
 from app.schemas.user import UserBase, UserCreate, UserRead
 
 __all__ = [
     "Token",
+    "TransactionCreate",
+    "TransactionRead",
+    "TransactionUpdate",
     "UserBase",
     "UserCreate",
     "UserRead",

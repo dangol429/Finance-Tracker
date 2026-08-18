@@ -14,7 +14,7 @@ from fastapi import FastAPI
 # It does NOT create tables — that's `python -m app.db.init_db`.
 import app.models  # noqa: F401
 from app.core.config import settings
-from app.routers import auth, health
+from app.routers import auth, health, transactions
 
 # `title` shows up in the generated OpenAPI spec and on the /docs page — the
 # API documents itself from this object, so metadata set here isn't cosmetic.
@@ -38,3 +38,10 @@ app.include_router(health.router)
 # the deliberate difference from middleware, where the app-level wiring decides
 # which URLs are guarded and forgetting one fails open.
 app.include_router(auth.router)
+
+# The prediction two comments up, cashed in: adding the whole transactions CRUD
+# surface — five endpoints, all of them protected and per-user scoped — cost one
+# new file and this one line. Nothing above changed, and nothing here says these
+# routes require a token; that lives in each handler's signature, where it can't
+# be left off by an omission in the wiring.
+app.include_router(transactions.router)
