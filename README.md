@@ -1,13 +1,15 @@
 # Personal Finance Tracker — Backend
 
 FastAPI + PostgreSQL + SQLAlchemy backend for a personal finance tracker.
-Docker deployment comes in a later milestone; **this is milestone 3 (JWT
-authentication): bcrypt-hashed passwords, a login endpoint that issues signed
-access tokens, and a dependency that turns a token back into a `User`.**
+Docker deployment comes in a later milestone; **this is milestone 4 (transaction
+CRUD): five REST endpoints over the `transactions` table, every one of them
+scoped to the logged-in user.**
 
-Milestone 2 built the four core tables and the foreign keys between them; this
-one adds the identity layer that every later ownership check (`WHERE user_id =
-:me`) depends on.
+Milestone 2 built the four core tables, milestone 3 added the identity layer,
+and this one is where the two meet: `WHERE user_id = :me` stops being the plan
+and starts being the code. It's also the first milestone with a real *write*
+surface, so most of the work is in what the API refuses — someone else's
+account, a negative amount, a patch that would null a `NOT NULL` column.
 
 ## Quick start
 
@@ -41,6 +43,11 @@ uvicorn app.main:app --reload
 | `POST /auth/register` | — | Create an account → `201` + the new user |
 | `POST /auth/login` | — | Email + password → `{access_token, token_type}` |
 | `GET /auth/me` | **Bearer** | The authenticated user's own profile |
+| `POST /transactions` | **Bearer** | Record a transaction → `201` |
+| `GET /transactions` | **Bearer** | Your ledger, newest first — filtered and paged |
+| `GET /transactions/{id}` | **Bearer** | One transaction, or `404` |
+| `PATCH /transactions/{id}` | **Bearer** | Change some fields, leave the rest |
+| `DELETE /transactions/{id}` | **Bearer** | Delete it → `204` |
 | `GET /docs` | — | Interactive API docs |
 
 ### Trying it
@@ -59,16 +66,51 @@ curl -X POST http://127.0.0.1:8000/auth/register \
 curl -X POST http://127.0.0.1:8000/auth/login \
   -d "username=you@example.com&password=a-long-enough-password"
 
+TOKEN=<paste-token>
+
 # Use the token
-curl http://127.0.0.1:8000/auth/me -H "Authorization: Bearer <paste-token>"
+curl http://127.0.0.1:8000/auth/me -H "Authorization: Bearer $TOKEN"
+
+# Record a transaction (see the note below about getting an account_id)
+curl -X POST http://127.0.0.1:8000/transactions \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"account_id":1,"category_id":1,"amount":"42.50","type":"expense",
+       "occurred_on":"2026-08-17","description":"weekly shop"}'
+
+# Read the ledger back, filtered
+curl "http://127.0.0.1:8000/transactions?type=expense&limit=20" \
+  -H "Authorization: Bearer $TOKEN"
+
+# Fix a typo — PATCH, so the fields you don't mention are left alone
+curl -X PATCH http://127.0.0.1:8000/transactions/1 \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"amount":"45.00"}'
 ```
+
+> **You need an `account_id` first, and there is no `/accounts` endpoint yet** —
+> accounts and categories get their own routers in the next milestone. Until
+> then, seed one row each from a Python shell (`.venv` active, in the project
+> root):
+>
+> ```python
+> from app.db.session import SessionLocal
+> from app.models import Account, Category, User
+> with SessionLocal() as db:
+>     me = db.query(User).filter_by(email="you@example.com").one()
+>     db.add_all([
+>         Account(user_id=me.id, name="Chase Checking", type="checking"),
+>         Category(user_id=me.id, name="Groceries", type="expense"),
+>     ])
+>     db.commit()
+> ```
 
 ## Study guide
 
 [`docs/Finance-Tracker-Study-Guide.pdf`](docs/Finance-Tracker-Study-Guide.pdf) — a
 16-page walkthrough of the reasoning behind each decision, including the
 generated SQL, the gotchas, and interview Q&A. **Currently covers milestones 1–2
-(setup and the data model); the auth material above hasn't been folded in yet.** Its
+(setup and the data model); the auth and transaction material above hasn't been
+folded in yet.** Its
 source is the sibling `.html` file; re-render it after edits with:
 
 ```bash
@@ -97,9 +139,11 @@ app/
 │   ├── category.py  └── transaction.py
 ├── routers/
 │   ├── health.py    # HTTP endpoints, grouped by feature
-│   └── auth.py      # /auth/register, /auth/login, /auth/me
+│   ├── auth.py      # /auth/register, /auth/login, /auth/me
+│   └── transactions.py  # full CRUD, every query scoped to the token's user
 └── schemas/         # Pydantic request/response shapes  (API contract)
     ├── user.py      # UserCreate (in) / UserRead (out) — the hash never appears
+    ├── transaction.py   # Create / Update / Read — no `user_id` on any input
     └── token.py     # {access_token, token_type}
 ```
 
@@ -314,6 +358,152 @@ GET  /auth/me          Authorization: Bearer <token>
   `ENVIRONMENT` is a `Literal` so a typo like `producton` crashes loudly instead
   of quietly disabling the guard.
 
+## Transactions
+
+```
+POST /transactions
+      │
+      ├─ CurrentUser          token ──> a real, active User          (401 / 403)
+      ├─ TransactionCreate    shape, amount > 0, NUMERIC(12,2), date  (422)
+      ├─ _require_owned_account    SELECT ... WHERE id=? AND user_id=?  (404)
+      ├─ _require_owned_category   ...same, plus income/expense match  (404 / 422)
+      └─ INSERT  user_id = current_user.id   ← from the token, never the body
+                                 │
+                                 └─ FK violation on commit ──────────> 409
+```
+
+Every read is the same shape in reverse — `WHERE user_id = :me` first, filters
+after:
+
+```sql
+SELECT * FROM transactions
+ WHERE user_id = :me                    -- not a filter; the scope
+   AND (:account_id IS NULL OR account_id = :account_id)   -- ...filters
+ ORDER BY occurred_on DESC, id DESC     -- id is what makes paging correct
+ LIMIT :limit OFFSET :offset;
+```
+
+### The decisions worth defending
+
+- **Ownership is a `WHERE` clause, never an `if` after the fetch.** Both reject
+  the request, but only one can't be forgotten: a missing `WHERE` makes the
+  query visibly wrong, while a missing `if` five lines into a handler looks like
+  nothing at all. It also means there is no window where someone else's row is
+  loaded in memory, one early `return` away from being serialized.
+
+- **Another user's row returns 404, not 403.** 403 means "this exists and you
+  can't have it" — which confirms it exists. Walk the ids and you've mapped how
+  many transactions the app holds and roughly when other people are active. 404
+  makes someone else's transaction and a transaction that was never created
+  indistinguishable from outside. Same reasoning as login's single error message
+  for "no such account" and "wrong password": don't answer questions you weren't
+  asked.
+
+- **404 for "not found or not yours", 422 for "both exist and contradict".** A
+  body reference to an account is as much an oracle as a path parameter, so an
+  unowned `account_id` is a 404 too. But filing groceries under a "Salary"
+  category is different in kind — both rows were found, both are yours, nothing
+  is being concealed. The request is well-formed and its meaning is impossible,
+  which is precisely what 422 is for.
+
+- **Filtering by someone else's `account_id` returns `[]`, not 404.** The
+  `user_id` scope has already made that condition unsatisfiable, so an empty page
+  falls out for free — and it's the one answer that reveals nothing about whether
+  that account exists. A 404 here would reintroduce the oracle the point above
+  closes.
+
+- **`TransactionCreate` has no `user_id` field.** Not "ignored", not
+  "overwritten by the handler" — absent, so the request has no way to express
+  the idea. The value comes from the token, and the closest a client can get to
+  suggesting otherwise is a 422 from `extra="forbid"`.
+
+- **Unknown JSON keys are rejected, not dropped.** Pydantic's default is to
+  ignore them, which for a hand-written API means `{"catagory_id": 3}` is
+  accepted, stored uncategorized, and reports success — leaving the client to
+  debug a field it believes it sent. One 422 finds that at the only moment
+  anyone is looking.
+
+- **PATCH, not PUT.** PUT means "replace this resource", so fixing a typo in an
+  amount requires resending every other field, and any the client forgets get
+  wiped. That's data loss waiting on a forgetful caller. PATCH means "change
+  what I mention", which is what editing a row actually is.
+
+- **`null` and *absent* are different, and only nullable columns may be
+  cleared.** `{"description": null}` clears it; `{}` leaves it alone. Pydantic
+  gives both the same attribute value, so the distinction lives in
+  `model_fields_set` — which is what `model_dump(exclude_unset=True)` reads.
+  Explicit `null` for `amount`, `type`, `occurred_on`, or `account_id` is a 422,
+  because `NOT NULL` would otherwise turn a client's mistake into a 500. An
+  empty body is a 422 too: it's almost always a serializer that dropped the
+  payload, and a 200 hides that.
+
+- **A patch that changes only `type` re-checks the category already on the row.**
+  The category isn't mentioned in the request and may have just become illegal
+  for it. Validating the *post-patch* state rather than the incoming fields is
+  what catches an expense flipped to income while still filed under "Groceries" —
+  the kind of row that breaks a report months later and can't be traced back.
+
+- **`ORDER BY occurred_on DESC, id DESC` — the `id` is not decoration.** Without
+  a unique tiebreaker, rows sharing a date have no defined order between two
+  queries, so PostgreSQL may order them differently for `offset=0` and
+  `offset=50`: one row appears on both pages, another on neither. It looks like
+  data loss and reproduces almost never. The sort also matches
+  `ix_transactions_user_id_occurred_on` exactly, and an index scans backwards, so
+  DESC is free.
+
+- **`limit` has a default *and* a ceiling.** The default protects the caller who
+  forgot to page; `le=200` protects the server from the one who didn't forget.
+  OFFSET is honest for page-numbered UIs and degrades on deep pages — the fix
+  when that hurts is keyset pagination, which the sort order above is already
+  shaped for.
+
+- **Amounts reject 10.999 rather than rounding it.** `max_digits=12,
+  decimal_places=2` mirrors `NUMERIC(12, 2)` exactly, and `gt=0` mirrors the
+  `CHECK` constraint — the schema for a readable 422, the constraint for the
+  guarantee. Quietly turning a client's number into a different number is how a
+  cent goes missing and nobody can say where.
+
+- **`occurred_on` may be at most one day ahead of UTC.** This is a ledger of
+  money that moved, and the default sort is newest-first — so a fat-fingered
+  `3025-01-04` doesn't merely sit in the data, it pins itself to the top of
+  every page forever. The one day of slack is because the server clocks in UTC
+  while users run as far ahead as +14, and rejecting someone's genuinely-today
+  purchase is a worse failure than accepting one that's a day early. Genuinely
+  scheduled transactions are a `scheduled` flag plus a job, not a loosened
+  validator.
+
+- **The denormalized `transactions.user_id` is written from the token, right
+  after the account is proven to be the caller's.** The model flags that column
+  as an invariant the service layer owes it — this is where that debt is paid.
+  Copying `payload.account_id` in without the ownership check is exactly how the
+  denormalization turns from an optimization into corruption.
+
+- **`IntegrityError` on commit becomes a 409.** The ownership checks are a race
+  by construction: an account can be deleted between the `SELECT` that proved it
+  exists and the `INSERT` that references it. The FK is what guarantees the
+  reference is real; the checks exist for the error message. Same rule as the
+  duplicate-email 409 — application checks give good errors, database
+  constraints give guarantees.
+
+- **DELETE returns 204 with no body, and a repeat DELETE returns 404.** The
+  status code already says it worked; inventing `{"deleted": true}` gives clients
+  something to parse that the next endpoint won't have. And 404 on the second
+  call is the honest answer to "delete the thing at this id" once there isn't
+  one — correctly indistinguishable from an id that was never yours.
+
+- **`signed_amount` is computed on the way out, not stored.** A signed column
+  next to `amount` and `type` is three fields that can disagree, and one day two
+  of them will. It's a property on the model that `from_attributes` picks up.
+
+- **What this milestone deliberately does *not* do: touch `Account.balance`.**
+  Keeping a stored balance correct means applying a delta on create, reversing
+  and re-applying it on update (including when the account itself changes),
+  reversing it on delete, and doing all of that atomically under concurrent
+  writes — `UPDATE accounts SET balance = balance + :delta`, not a read-modify-
+  write. That's a milestone, not a line, and doing it halfway is worse than not
+  starting: a balance that's *usually* right is one nobody can trust or audit.
+  Until then it stays at its default and the ledger is the source of truth.
+
 ## Why it's laid out this way (the interview answer)
 
 The guiding idea is **separation of concerns**: each folder owns one job, so a
@@ -334,12 +524,14 @@ change in one layer doesn't ripple through the others. Concretely:
   without the other, which is the point of the seam.
 
 - **`routers/` — the HTTP layer.** Each file is a `APIRouter` for one feature
-  area (`health`, `auth`; `transactions` and `accounts` later). `main.py` just
+  area (`health`, `auth`, `transactions`; `accounts` later). `main.py` just
   calls `include_router()` on each. This is what keeps `main.py` thin and lets
-  the API grow by *adding a file* rather than by growing one giant file. Note
-  that `main.py` says nothing about which routes are protected — that lives in
-  each handler's signature, so a new route can't be left unguarded by an
-  omission in the wiring.
+  the API grow by *adding a file* rather than by growing one giant file — a
+  claim milestone 4 actually cashed: five new endpoints cost one new file and
+  one line in `main.py`, with nothing above it touched. Note that `main.py` says
+  nothing about which routes are protected — that lives in each handler's
+  signature, so a new route can't be left unguarded by an omission in the
+  wiring.
 
 - **`models/` vs `schemas/` — the deliberately-split pair.** This is the split
   interviewers usually probe:
