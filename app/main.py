@@ -14,7 +14,7 @@ from fastapi import FastAPI
 # It does NOT create tables — that's `python -m app.db.init_db`.
 import app.models  # noqa: F401
 from app.core.config import settings
-from app.routers import auth, health, summary, transactions
+from app.routers import auth, csv_import, health, summary, transactions
 
 # `title` shows up in the generated OpenAPI spec and on the /docs page — the
 # API documents itself from this object, so metadata set here isn't cosmetic.
@@ -38,6 +38,18 @@ app.include_router(health.router)
 # the deliberate difference from middleware, where the app-level wiring decides
 # which URLs are guarded and forgetting one fails open.
 app.include_router(auth.router)
+
+# `POST /transactions/import`, registered *before* the router that owns
+# `/transactions/{transaction_id}`.
+#
+# It changes nothing today — the path-parameter routes are GET/PATCH/DELETE, so
+# a POST can't be captured by them — and it is the right habit anyway. Starlette
+# matches routes in registration order and a path parameter matches any single
+# segment, so the day `POST /transactions/{id}/split` is added, a `/import`
+# registered after it becomes unreachable: every request lands on the parameter
+# route with `transaction_id="import"` and answers 422. Literal segments first
+# means that bug can't be introduced by a later edit somewhere else.
+app.include_router(csv_import.router)
 
 # The prediction two comments up, cashed in: adding the whole transactions CRUD
 # surface — five endpoints, all of them protected and per-user scoped — cost one

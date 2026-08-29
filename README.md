@@ -1,23 +1,43 @@
 # Personal Finance Tracker — Backend
 
 FastAPI + PostgreSQL + SQLAlchemy backend for a personal finance tracker.
-Docker deployment comes in a later milestone; **this is milestone 5
-(aggregations): three read-only endpoints that turn the ledger into the numbers
-a dashboard draws, using real SQL `GROUP BY` and aggregate functions.**
+**This is milestone 8: the project is containerised and tested.** `docker
+compose up` brings the API up alongside Postgres with one command, and `pytest`
+runs twenty tests against a real database in about ten seconds.
 
 Milestone 2 built the four core tables, milestone 3 added the identity layer,
-and milestone 4 was where the two met — `WHERE user_id = :me` stopping being the
-plan and starting to be the code, across five CRUD endpoints whose interesting
-half is what they refuse.
+milestone 4 was where the two met — `WHERE user_id = :me` stopping being the plan
+and starting to be the code — milestone 5 changed the question from *which rows?*
+to *what do they add up to?*, and milestone 6 added bulk CSV import so a year of
+history doesn't have to be typed in.
 
-This one changes the question from *which rows?* to *what do they add up to?*
-The whole point is that the database answers it. A year of spending might be
-5,000 rows; the monthly chart above it is twelve numbers, and the difference
-between computing those twelve in PostgreSQL and computing them in a Python loop
-is the difference between an endpoint that stays fast and one that gets slower
-every month a user keeps using the app.
+The last two milestones don't add a feature, and that's the point. Everything
+above is now enough code that changing it safely requires knowing whether it
+still works, and running it at all requires a database, a role, a schema and four
+environment variables lined up correctly. Milestone 7 answers the first with a
+suite small enough to actually run; milestone 8 answers the second by making the
+whole environment a file in the repository. Between them they're what turns the
+project from something that works on one machine into something you can hand to
+someone else.
 
 ## Quick start
+
+**With Docker (recommended — nothing to install but Docker):**
+
+```bash
+docker compose up --build          # Postgres + schema + API, wired together
+# → http://127.0.0.1:8000/docs
+
+docker compose down                # stop, keeping the data
+docker compose down -v             # stop and delete the database volume
+```
+
+That's the whole setup. Compose starts Postgres, waits for it to be genuinely
+ready, runs the schema step once, and only then starts the API — see
+[Docker](#docker) for how each of those is enforced.
+
+<details>
+<summary>Without Docker — running against your own PostgreSQL</summary>
 
 ```bash
 # 1. Create and activate a virtual environment
@@ -40,6 +60,15 @@ python -m app.db.init_db
 
 # 6. Run
 uvicorn app.main:app --reload
+```
+
+</details>
+
+**Running the tests** (needs a Postgres; `docker compose up -d db` is enough):
+
+```bash
+pip install -r requirements-dev.txt
+pytest
 ```
 
 | Endpoint | Auth | What it does |
@@ -103,7 +132,66 @@ curl "http://127.0.0.1:8000/summary/by-category" -H "Authorization: Bearer $TOKE
 
 # The headline pair, plus a savings rate
 curl "http://127.0.0.1:8000/summary/income-vs-expense" -H "Authorization: Bearer $TOKEN"
+
+# --- bulk import (milestone 6) ---
+
+# A small statement to play with. Note the quoted comma and the blank category.
+cat > statement.csv <<'CSV'
+Transaction Date,Amount,Description,Category
+2026-03-04,-45.20,"COFFEE, LARGE",Groceries
+2026-03-05,1500.00,March salary,Salary
+2026-03-06,-12.00,Bus fare,
+2026-03-07,-9.99,Missing a category,Rent
+CSV
+
+# Check it first — parses and validates everything, writes nothing
+curl -X POST "http://127.0.0.1:8000/transactions/import?dry_run=true" \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "file=@statement.csv" -F "account_id=1"
+
+# Then do it for real
+curl -X POST http://127.0.0.1:8000/transactions/import \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "file=@statement.csv" -F "account_id=1"
 ```
+
+<details>
+<summary>What <code>/transactions/import</code> returns</summary>
+
+```json
+{
+  "filename": "statement.csv",
+  "account_id": 1,
+  "dry_run": false,
+  "total_rows": 4,
+  "imported": 3,
+  "failed": 1,
+  "errors": [
+    {"row": 5, "field": "category", "value": "Rent",
+     "reason": "no category named 'Rent' (create it first, or clear the column to import the row uncategorized)"}
+  ],
+  "errors_truncated": false
+}
+```
+
+200, not 4xx, with three rows written and one skipped — partial success is the
+normal outcome of a bulk import and there's no status code that means "mostly".
+`imported + failed == total_rows` always holds. `row` is the line number in the
+file, so the fix is "open line 5"; `errors` is capped at 100 entries while
+`failed` stays exact, which is what `errors_truncated` is for.
+
+Note what happened to the amounts on the way in: `-45.20` became `45.20` with
+`type = "expense"`, because the model stores magnitudes and lets `type` carry
+the sign. A statement that instead has a `direction`/`type` column of its own
+(`debit`, `credit`, `withdrawal`, …) works too — and a row where the two
+*disagree*, like `-50.00` labelled `credit`, is rejected rather than resolved.
+
+</details>
+
+> The `account_id` is a form field rather than a CSV column on purpose: one
+> upload is one bank statement, which is one account. That makes the ownership
+> check a single `SELECT` performed before a byte of the file is parsed, instead
+> of a per-row question a file could answer differently on every line.
 
 <details>
 <summary>What <code>/summary/monthly</code> returns</summary>
@@ -168,6 +256,18 @@ chrome --headless=new --no-pdf-header-footer \
 ## Project structure
 
 ```
+Dockerfile           # Two-stage build: deps in a venv, then a clean runtime
+docker-compose.yml   # db + one-shot schema step + api, wired together
+.dockerignore        # Keeps .venv/, .git/ and .env out of the build context
+pytest.ini           # pythonpath, testpaths, --strict-markers
+requirements.txt     # Runtime deps — what the image installs
+requirements-dev.txt # pytest, httpx, ruff — deliberately NOT in the image
+
+tests/
+├── conftest.py      # Real Postgres, one rolled-back transaction per test
+├── test_auth.py     ├── test_transactions.py
+├── test_summary.py  └── test_csv_import.py
+
 app/
 ├── main.py          # Entry point: creates the app, wires routers together
 ├── core/
@@ -186,11 +286,13 @@ app/
 │   ├── health.py    # HTTP endpoints, grouped by feature
 │   ├── auth.py      # /auth/register, /auth/login, /auth/me
 │   ├── transactions.py  # full CRUD, every query scoped to the token's user
-│   └── summary.py   # GROUP BY aggregates: monthly / by-category / in-vs-out
+│   ├── summary.py   # GROUP BY aggregates: monthly / by-category / in-vs-out
+│   └── csv_import.py    # multipart upload -> parse -> validate -> one batch
 └── schemas/         # Pydantic request/response shapes  (API contract)
     ├── user.py      # UserCreate (in) / UserRead (out) — the hash never appears
     ├── transaction.py   # Create / Update / Read — no `user_id` on any input
     ├── summary.py   # output-only shapes; the aggregations take no body
+    ├── csv_import.py    # the import report: a tally plus a defect list
     └── token.py     # {access_token, token_type}
 ```
 
@@ -690,6 +792,300 @@ SELECT CAST(date_trunc('month', CAST(occurred_on AS TIMESTAMP)) AS DATE) AS mont
   aggregate already bounds the response size, and the queries are served by the
   existing `(user_id, occurred_on)` index; adding a cache before there's a
   measurement is how you acquire an invalidation bug in exchange for nothing.
+
+## CSV import
+
+One endpoint, and the first one whose request body is a file:
+
+```
+POST /transactions/import          multipart/form-data
+    file=@statement.csv            the upload
+    account_id=1                   form field — one statement is one account
+    ?dry_run=true                  optional: validate everything, write nothing
+```
+
+The pipeline, and where each kind of failure is answered:
+
+```
+read (capped at 5 MB)  ──► 413   the request never had a chance
+decode utf-8-sig       ──► 422   not text this app can read
+map header aliases     ──► 422   wrong file entirely — fails before row 1
+    │
+    └─► per row:  ragged? ─► date ─► amount ─► direction ─► category ─► TransactionCreate
+                     │        │        │           │            │              │
+                     └────────┴────────┴───────────┴────────────┴──────────────┘
+                                          ▼
+                            skipped, reported by line number   (200, in the report)
+                                          ▼
+                     survivors ──► add_all ──► ONE commit ──► 409 only if the FK broke
+```
+
+The columns it understands. Only the first two are required, and every name is
+matched case-insensitively with spaces normalized, so `Transaction Date` and
+`transaction_date` are the same column:
+
+| Canonical | Accepted headers | Notes |
+|---|---|---|
+| `date` | `date`, `transaction_date`, `posted_date`, `posting_date`, `value_date`, `occurred_on` | ISO only; a trailing time is dropped |
+| `amount` | `amount`, `value` | signed, or a magnitude paired with `type` |
+| `type` | `type`, `direction`, `transaction_type` | `debit`/`credit`, `withdrawal`/`deposit`, … |
+| `description` | `description`, `memo`, `narrative`, `details`, `payee` | first match in header order wins |
+| `category` | `category` | resolved by name against *your* categories |
+
+### The decisions worth defending
+
+- **One bad row is not a bad file — and one ambiguous row is not a row.** These
+  pull in opposite directions and both matter. Rejecting the whole upload over a
+  stray blank line means the user fixes one thing, re-uploads, and finds the next
+  one; so rows are independent. But the reason to skip a row rather than
+  interpret it is that a *quietly* wrong ledger is the worse failure. `04/03/2026`
+  is the 4th of March in most of the world and the 3rd of April in the US, and a
+  parser that picks one is wrong about a third of a real statement while
+  reporting complete success. Rejected, it costs one column edit.
+
+- **`45,20` is refused, not stripped.** The obvious amount parser removes commas
+  so `1,234.56` works — and silently turns the European spelling of forty-five
+  euros twenty into **4520**. A hundred-fold error, on money, with no symptom
+  until someone reads their spending report. So commas are allowed only in valid
+  thousands positions and rejected anywhere else. `(45.20)`, the accounting
+  negative that falls out of every currency-formatted spreadsheet, is understood.
+
+- **`csv.DictReader`, never `line.split(",")`.** The split version is shorter and
+  wrong on the first `"COFFEE, LARGE"` — it shifts every later field one column
+  over, so an amount gets parsed out of a description. Quoting, escaped quotes
+  and embedded newlines *are* the format, not edge cases. `restkey`/`restval` are
+  set explicitly so a ragged line is detected instead of silently misaligned.
+
+- **`utf-8-sig`, and no encoding fallback.** Excel writes a BOM; under plain
+  `utf-8` those three bytes become part of the first header name, so `date`
+  silently becomes `﻿date` and the error says the file has no date column
+  while the user is looking straight at one. Anything that isn't valid UTF-8 is
+  refused rather than guessed at — cp1252 would rescue a pound sign and would
+  also decode genuinely broken bytes into plausible garbage, landing it in the
+  description column, which is the one field nothing downstream validates.
+
+- **Rows are validated by `TransactionCreate` — the same schema `POST
+  /transactions` uses.** The parsers here turn the file's *notation* into Python
+  values; every actual rule (amount positive, `NUMERIC(12,2)` fits, no future
+  dates, description length) stays in one place. Re-implementing them for the
+  import path is the trap, because the copies drift — and the import path is
+  precisely the one that gets thousands of rows with no human reading them, so a
+  rule that quietly went missing there does the most damage before anyone notices.
+
+- **Categories are looked up once, not once per row.** The N+1 problem in its
+  most avoidable form: a `SELECT` inside the loop turns a 400-row import into 401
+  round trips to distinguish four category names. One query builds a dict; the
+  loop does lookups. An unknown name *rejects* the row rather than importing it
+  uncategorized (a success whose result is wrong is what the report exists to
+  prevent) and rather than creating the category (which makes every typo
+  permanent). `dry_run=true` is what makes that cheap: preview, see which names
+  are missing, create them, import.
+
+- **The handler is `def`, not `async def`.** `await file.read()` is the tempting
+  spelling and it forces the whole function async — at which point every blocking
+  psycopg2 call in it runs *on the event loop* and one slow import stalls every
+  other request the process is serving. A plain `def` handler is dispatched to a
+  threadpool, and `UploadFile.file` is the synchronous file object underneath.
+  Every other route in this app is `def`; this is the one where the temptation
+  to differ shows up.
+
+- **The upload is read in chunks against a byte cap.** Neither FastAPI nor
+  Starlette limits request body size by default, so `.read()` with no argument is
+  a memory bomb with a one-line trigger. Checking the length *after* reading
+  would measure a file that is already resident — the cap has to be enforced
+  while the bytes arrive. A proxy in front of this should have its own limit; the
+  app shouldn't depend on deployment topology to stay up.
+
+- **One `add_all`, one commit.** Per-row commits mean 400 transactions, 400
+  fsyncs, and a failure halfway through leaving a half-imported statement that
+  the user has to reconcile by hand — with the rows that *did* land being exactly
+  the ones a retry would duplicate. The INSERTs inside that one transaction are
+  batched by SQLAlchemy 2.0's `insertmanyvalues`, and the reason is worth
+  knowing: the ORM needs each new row's `id`, and PostgreSQL has no
+  `cursor.lastrowid`, so it fetches them with `RETURNING` — which works on a
+  multi-row INSERT. Hence `INSERT ... VALUES (...), (...), ... RETURNING id` in
+  pages of 1000. (Run the same code on SQLite and you get one INSERT per row; the
+  batching is a property of the dialect, not of `add_all`. `bulk_save_objects` is
+  the 1.x tool for this and is legacy in 2.0 because none of it needs asking for.)
+
+- **`dry_run` runs the same code path and stops one line short of the commit.**
+  A preview implemented as a separate, simpler validation pass is a preview of a
+  different program, and the rows the two disagreed about would be the ones that
+  mattered.
+
+- **The response is a report, not the created rows.** Returning 5,000 serialized
+  transactions to answer "did it work?" is work done to be thrown away, and it
+  still leaves nowhere to say what happened to the rows that failed. So: a tally
+  where `imported + failed == total_rows` by construction, plus a defect list
+  capped at 100 entries with `errors_truncated` saying so — a structurally wrong
+  file is wrong in every row, and 50,000 copies of one mistake is not a report.
+  Each entry names the field and the offending cell, and deliberately not the
+  rest of the line: a statement row is someone's private spending, and this
+  object travels into logs, toasts and screenshots that the row itself doesn't.
+
+- **What this milestone deliberately does *not* do: detect duplicates.**
+  Re-uploading an overlapping statement imports the overlap twice. Solving it
+  properly is a schema change rather than a check — a stable fingerprint (the
+  bank's own reference id, else a hash of account + date + amount + description)
+  under a unique index, so the guarantee comes from PostgreSQL instead of from a
+  `SELECT` that races the insert. Doing it halfway, by skipping rows that
+  *look* like existing ones, is worse than not doing it: it drops the second
+  identical coffee someone genuinely bought that day.
+
+## Tests
+
+Twenty of them, in about ten seconds:
+
+```bash
+pytest                       # all of it
+pytest tests/test_auth.py    # one file
+pytest -k ownership          # by name
+```
+
+| File | Covers |
+|---|---|
+| `tests/test_auth.py` | register, duplicate email, login, account enumeration, token validity |
+| `tests/test_transactions.py` | create / list / filter / patch / delete, and who can see what |
+| `tests/test_summary.py` | gap-filling, category shares, savings rate, scoping |
+| `tests/test_csv_import.py` | a real-shaped statement, skipped bad rows, dry run |
+
+### The decisions worth defending
+
+- **They run against real PostgreSQL, not SQLite.** That costs a running server
+  and it buys the only thing a suite is for. SQLite cannot run `/summary/*` at
+  all — those endpoints are built on `date_trunc` and `SUM(...) FILTER (WHERE
+  ...)` — so the choice isn't "slower tests" versus "faster tests", it's
+  "tests" versus "no tests on the most intricate code in the project". It would
+  also skip the `CHECK (amount > 0)` constraint, the `ON DELETE SET NULL`
+  behaviour, and the real `ENUM` types. A suite that passes against a database
+  the application will never use reports on a program nobody runs.
+
+- **One transaction per test, rolled back.** The `db_session` fixture opens a
+  connection, begins a transaction, and rolls it back at the end, so every test
+  starts from an empty database without the schema being rebuilt. The load-bearing
+  detail is `join_transaction_mode="create_savepoint"`: handlers under test call
+  `db.commit()`, which would normally end that outer transaction, and this makes
+  their work happen inside a SAVEPOINT instead. Nothing in the application is
+  written differently because it is being tested.
+
+- **Authentication is exercised, not stubbed.** `get_db` is the only dependency
+  overridden. Tests log in through `/auth/login` and send real bearer tokens, so
+  the signature check, the user lookup and the `is_active` check all run.
+  Overriding `get_current_user` would make the suite faster and would stop it
+  ever noticing that auth broke.
+
+- **Most of these tests assert on what the API refuses to say.** A hash that
+  never appears in a response; one error message shared by "wrong password" and
+  "no such account"; a 404 rather than a 403 for someone else's row. Those
+  properties are invisible when you break them and trivial to break in a
+  refactor — a dropped `WHERE user_id = :me` leaves every endpoint working
+  perfectly for the person testing by hand. Note the scoping tests seed a
+  *second* user with real data: against an empty database, a 404 passes for the
+  wrong reason.
+
+- **Fixtures build data through the ORM, not through the API.** Creating a user
+  by POSTing to `/auth/register` would make almost every test depend on
+  registration working, so one bug there would fail the whole suite at once and
+  say nothing about where it was. Arrange directly, act through the API.
+
+- **The test database is never the development one.** `conftest.py` calls
+  `drop_all`, so it refuses to start if the two names match. That guard is three
+  lines and the failure it prevents is unrecoverable and noticed afterwards.
+
+- **bcrypt is cached across fixtures, not weakened.** Hashing the same two
+  constant passwords forty times costs 50 seconds of a 60-second run, entirely
+  to re-derive identical digests. The hash is memoized per run; the work factor
+  is untouched and `/auth/login` still runs a real `verify_password` on every
+  test that logs in. A suite people stop running has no value, and this one went
+  from 61s to 10s without giving up a single assertion.
+
+- **What this milestone deliberately does *not* do: chase coverage.** There is no
+  test per CSV date format, no parametrized sweep of every validation rule. The
+  brief was enough to refactor safely, and a suite that costs more to maintain
+  than the code it guards is one that gets deleted in a hurry six months from now.
+
+## Docker
+
+```
+docker-compose.yml
+├── db        postgres:16-alpine   named volume, healthcheck, 127.0.0.1:5432
+├── init-db   runs create_all once, exits 0
+└── api       uvicorn, 127.0.0.1:8000, starts only after both of the above
+```
+
+```
+docker compose up --build     start everything
+docker compose logs -f api    follow the API's output
+docker compose down           stop, keep the data
+docker compose down -v        stop, delete the data
+```
+
+The final image is ~300 MB and runs as a non-root user.
+
+### The decisions worth defending
+
+- **Service names are hostnames.** The API connects to `db:5432`, not
+  `localhost:5432` — inside the API container, `localhost` *is* the API
+  container. This is the single most common way a working compose file gets
+  written wrong, because the value is correct everywhere except the one place
+  it's used.
+
+- **`depends_on` alone means almost nothing; the healthcheck is what makes it
+  mean something.** Without one, `depends_on` waits only for the container to
+  have *started*, and Postgres takes a second or two after that before it
+  accepts connections — so the API reliably loses the race on a cold start.
+  `pg_isready` asks the question actually being asked.
+
+- **Schema creation is a one-shot service, not something the app does at boot.**
+  `app/db/init_db.py` already argues why: if the web app ran `create_all` on
+  startup, every worker in a scaled deployment would run it simultaneously
+  against the same database and race the others into a half-created schema. One
+  container, running once, has nobody to race. The API then waits on
+  `service_completed_successfully`, so a failed schema step stops the API from
+  starting at all rather than surfacing as a crash loop three services away.
+
+- **A named volume, not a bind mount, for the database.** Without a volume,
+  `docker compose down` deletes the database along with the container's writable
+  layer and every restart begins from an empty schema. Named rather than a host
+  path because Postgres wants specific ownership and permissions on its data
+  directory, which a bind mount from a Windows or macOS filesystem can't
+  reliably provide.
+
+- **Two build stages.** Dependencies are installed into a virtualenv in a
+  `builder` stage; the runtime stage copies just that venv into a clean base. The
+  pip cache and any build tooling stay in a layer that never ships. The
+  virtualenv looks redundant inside an already-isolated container and earns its
+  place by putting every installed package under one directory that the next
+  stage can take in a single `COPY`.
+
+- **`requirements.txt` is copied before the application code.** Docker caches
+  layers until one of their inputs changes, so this is what decides whether
+  editing a router re-runs `pip install`. The tempting `COPY . .` first would
+  invalidate the install on every source edit.
+
+- **`.dockerignore` is a security file as much as a speed one.** It keeps
+  `.venv/` (hundreds of megabytes) out of the build context, and it keeps `.env`
+  and `.git/` out of the image — a secret baked into a layer survives a later
+  layer deleting it, and travels wherever the image is pushed.
+
+- **`--host 0.0.0.0` in the CMD.** Uvicorn defaults to `127.0.0.1`, which inside
+  a container is a loopback nothing outside can reach: the container starts, the
+  logs look perfect, and every request from the host is refused.
+
+- **The image is the production artifact; compose layers development on top.**
+  No `--reload` in the `CMD` and the code is baked in. The compose file overrides
+  the command and bind-mounts `./app` read-only for hot reload. An image that
+  only works when a volume is mounted over it is not a deployable image.
+
+- **Ports are published on `127.0.0.1`, not `0.0.0.0`.** A development database
+  with a placeholder password has no business listening on the machine's LAN
+  address.
+
+- **Non-root, and a pinned base image.** Root in the container is root on the
+  host kernel. `python:3.12-slim` and `postgres:16-alpine` are pinned because a
+  floating tag means the image silently changes between two builds of the same
+  commit — and a new Postgres *major* wouldn't read the existing volume at all,
+  turning `compose pull` into a restart loop.
 
 ## Why it's laid out this way (the interview answer)
 

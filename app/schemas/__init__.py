@@ -14,6 +14,7 @@ needs populating. Importing every model is load-bearing; importing every schema
 is just a shorter import line.
 """
 
+from app.schemas.csv_import import ImportSummaryRead, RowError
 from app.schemas.summary import (
     CategoryBreakdownRead,
     CategorySlice,
@@ -33,9 +34,11 @@ from app.schemas.user import UserBase, UserCreate, UserRead
 __all__ = [
     "CategoryBreakdownRead",
     "CategorySlice",
+    "ImportSummaryRead",
     "IncomeVsExpenseRead",
     "MonthPoint",
     "MonthlySummaryRead",
+    "RowError",
     "SideTotals",
     "Token",
     "TransactionCreate",

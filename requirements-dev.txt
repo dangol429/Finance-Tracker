@@ -1,0 +1,19 @@
+# Development and test dependencies.
+#
+# Deliberately separate from requirements.txt, which is what the Dockerfile
+# installs: pytest has no business in the production image. It is extra surface
+# to keep patched, and a container with test fixtures in it is a container that
+# can be made to run them.
+#
+#   pip install -r requirements.txt -r requirements-dev.txt
+
+pytest==8.3.4
+
+# The HTTP client FastAPI's TestClient is built on. Not a runtime dependency of
+# the app — the app is a server, not a client — which is exactly why it belongs
+# in this file rather than the other one.
+httpx==0.28.1
+
+# Linter and formatter. Already used on this project; pinned here so a fresh
+# clone gets the same version and therefore the same opinions.
+ruff==0.16.2

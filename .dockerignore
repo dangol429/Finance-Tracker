@@ -1,0 +1,65 @@
+# What NOT to send to the Docker daemon when building.
+#
+# Everything in the build context is uploaded to the daemon before the first
+# instruction runs, so this file is the difference between a build that starts
+# instantly and one that spends thirty seconds shipping a virtualenv it is about
+# to throw away. `.venv/` alone is several hundred megabytes here.
+#
+# It is also a *security* file, not just a speed one. `COPY . .` in some future
+# edit of the Dockerfile would otherwise bake `.env` — real database
+# credentials and the JWT signing key — into an image layer, where it survives
+# even if a later layer deletes the file, and travels to wherever that image is
+# pushed. Excluding it here means that mistake cannot be made.
+
+# ---- Virtual environments (the big one) ----
+.venv/
+venv/
+env/
+ENV/
+
+# ---- Secrets ----
+# Never in an image. Configuration reaches the container through environment
+# variables at *run* time (see docker-compose.yml), which is the whole reason
+# app/core/config.py reads its settings from the environment.
+.env
+*.env
+!.env.example
+
+# ---- Git ----
+# The full history, including any secret ever committed and later removed.
+.git/
+.gitattributes
+.gitignore
+
+# ---- Python noise ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# ---- Tooling caches and test artifacts ----
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ---- Not needed at runtime ----
+# The tests run against the app, they are not part of it. Excluding them keeps
+# the image smaller and means a container has no test fixtures lying around.
+tests/
+docs/
+README.md
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# ---- IDE / OS ----
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.log

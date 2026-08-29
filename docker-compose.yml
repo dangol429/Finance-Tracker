@@ -1,0 +1,153 @@
+# The development stack: PostgreSQL, a one-shot schema step, and the API.
+#
+#   docker compose up --build        start everything
+#   docker compose down              stop it, keeping the data
+#   docker compose down -v           stop it and delete the database volume
+#
+# **What this file is actually for.** Not deployment — this is the *reproducible
+# setup*. The README's quick start asks a newcomer to install PostgreSQL, create
+# a role, create a database and get a connection string right before they can
+# see a single endpoint. Every one of those steps is a chance to end up with a
+# subtly different environment from everyone else's, and "works on my machine"
+# is the accumulated result. Two commands and a pinned Postgres version replaces
+# all of it, and deleting the whole thing is `down -v`.
+#
+# **The one idea worth carrying away: service names are hostnames.** Compose
+# puts these containers on a shared network where each is reachable by its
+# service name, so the API connects to `db:5432`, not `localhost:5432`. Inside
+# the API container, `localhost` is the API container — the single most common
+# way a working compose file gets written wrong, because the value is correct
+# everywhere except the one place it is used.
+
+services:
+  # --- PostgreSQL ----------------------------------------------------------
+  db:
+    # Pinned to a major version. `postgres:latest` means a `docker compose pull`
+    # can hand you a new major release, and Postgres major versions do not read
+    # each other's data directories — the container would start, fail to open
+    # the existing volume, and restart forever. `-alpine` is the small base.
+    image: postgres:16-alpine
+
+    # These three are read by the official image's entrypoint on *first* start
+    # to create the role and the database. They are also, not by coincidence,
+    # exactly the names app/core/config.py already reads (POSTGRES_USER,
+    # POSTGRES_PASSWORD, POSTGRES_DB), so one `.env` configures both sides.
+    #
+    # `${VAR:-default}` supplies a fallback so the stack comes up on a fresh
+    # clone with no `.env` at all. Real credentials belong in `.env`, which is
+    # gitignored and which compose reads automatically from this directory.
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-finance}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      POSTGRES_DB: ${POSTGRES_DB:-finance_tracker}
+
+    # A *named volume*, not a bind mount. This is what makes the data outlive
+    # the container: without it, `docker compose down` deletes the database
+    # along with the container's writable layer, and every restart starts from
+    # an empty schema. Named rather than a host path because the database's
+    # files are Postgres's business — it wants correct ownership and permissions
+    # on them, which a bind mount from a Windows or macOS filesystem cannot
+    # reliably give it.
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+    # Published so tools on the host can reach it: psql, a GUI client, and the
+    # test suite, which runs on the host against this container (see
+    # tests/conftest.py). Bound to 127.0.0.1 explicitly rather than the default
+    # 0.0.0.0, so a development database with a placeholder password is not
+    # listening on the machine's LAN address.
+    ports:
+      - "127.0.0.1:5432:5432"
+
+    # The reason `depends_on` below can mean anything. Without a healthcheck,
+    # `depends_on` waits only for the container to have been *started*, and
+    # Postgres takes a second or two after that before it accepts connections —
+    # so the API reliably loses the race on a cold start and exits. `pg_isready`
+    # is the question actually being asked: can a client connect yet?
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-finance} -d ${POSTGRES_DB:-finance_tracker}"]
+      interval: 5s
+      timeout: 5s
+      # Generous, because it only has to cover the *first* start, where the
+      # entrypoint initialises a new data directory before serving anything.
+      retries: 10
+
+  # --- Schema creation (runs once, then exits) -----------------------------
+  #
+  # A separate one-shot service rather than something the API does on boot, and
+  # the distinction is the one app/db/init_db.py already argues for: schema
+  # changes are a deploy-time decision. If the web app ran `create_all` at
+  # startup, every worker in a scaled-out deployment would run it simultaneously
+  # against the same database and race the others into a half-created schema.
+  # One container, running once, has no one to race.
+  #
+  # `create_all` is idempotent, so running this on every `up` is harmless — it
+  # issues CREATE TABLE only for tables that don't exist. It also will not
+  # *alter* an existing table to match a changed model, which is the point at
+  # which Alembic takes over (a later milestone).
+  init-db:
+    build: .
+    command: python -m app.db.init_db
+    environment:
+      # `db`, not `localhost` — see the note at the top of this file.
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-finance}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      POSTGRES_DB: ${POSTGRES_DB:-finance_tracker}
+      SECRET_KEY: ${SECRET_KEY:-dev-only-insecure-secret-change-me}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  # --- The API -------------------------------------------------------------
+  api:
+    build: .
+
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-finance}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      POSTGRES_DB: ${POSTGRES_DB:-finance_tracker}
+      # Passed through rather than defaulted silently in production terms: the
+      # app itself refuses to boot with this placeholder when ENVIRONMENT is
+      # anything but development (see config.py), so the guard still holds.
+      SECRET_KEY: ${SECRET_KEY:-dev-only-insecure-secret-change-me}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      DEBUG: ${DEBUG:-true}
+
+    ports:
+      - "127.0.0.1:8000:8000"
+
+    # Wait for the database to be *ready*, and for the schema step to have
+    # *finished successfully*. `service_completed_successfully` is the condition
+    # that makes a one-shot dependency work: if `init-db` exits non-zero — no
+    # database, a bad password — the API is never started, and the failure shows
+    # up as the error it actually was instead of as a crash loop three services
+    # away.
+    depends_on:
+      db:
+        condition: service_healthy
+      init-db:
+        condition: service_completed_successfully
+
+    # Development-only: mount the source over the copy baked into the image and
+    # run uvicorn's reloader, so an edit on the host restarts the server in the
+    # container. `:ro` because the container has no business writing to your
+    # working tree.
+    #
+    # Note this deliberately overrides the image's CMD rather than changing it.
+    # The image stays the production artifact — no reloader, no bind mount, code
+    # baked in — and this file layers development conveniences on top. An image
+    # that only works when a volume is mounted over it is not a deployable image.
+    volumes:
+      - ./app:/app/app:ro
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+# Declares the named volume used above. Docker creates it on first `up` and
+# leaves it alone on `down`; only `down -v` removes it.
+volumes:
+  pgdata:
