@@ -14,7 +14,7 @@ from fastapi import FastAPI
 # It does NOT create tables — that's `python -m app.db.init_db`.
 import app.models  # noqa: F401
 from app.core.config import settings
-from app.routers import auth, health, transactions
+from app.routers import auth, health, summary, transactions
 
 # `title` shows up in the generated OpenAPI spec and on the /docs page — the
 # API documents itself from this object, so metadata set here isn't cosmetic.
@@ -45,3 +45,11 @@ app.include_router(auth.router)
 # routes require a token; that lives in each handler's signature, where it can't
 # be left off by an omission in the wiring.
 app.include_router(transactions.router)
+
+# The read side of the same data. Nothing here changes either — a new file, a
+# new line, and the dashboard has its three endpoints. Worth noting what these
+# routes *don't* need that `transactions` did: no ownership helpers, no 404-vs-
+# 403 policy, no `limit` ceiling. Aggregates return one row per group, so the
+# scope in the WHERE clause is the whole of the access story and the size of the
+# answer is bounded by the calendar rather than by the ledger.
+app.include_router(summary.router)

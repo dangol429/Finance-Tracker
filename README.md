@@ -1,15 +1,21 @@
 # Personal Finance Tracker — Backend
 
 FastAPI + PostgreSQL + SQLAlchemy backend for a personal finance tracker.
-Docker deployment comes in a later milestone; **this is milestone 4 (transaction
-CRUD): five REST endpoints over the `transactions` table, every one of them
-scoped to the logged-in user.**
+Docker deployment comes in a later milestone; **this is milestone 5
+(aggregations): three read-only endpoints that turn the ledger into the numbers
+a dashboard draws, using real SQL `GROUP BY` and aggregate functions.**
 
 Milestone 2 built the four core tables, milestone 3 added the identity layer,
-and this one is where the two meet: `WHERE user_id = :me` stops being the plan
-and starts being the code. It's also the first milestone with a real *write*
-surface, so most of the work is in what the API refuses — someone else's
-account, a negative amount, a patch that would null a `NOT NULL` column.
+and milestone 4 was where the two met — `WHERE user_id = :me` stopping being the
+plan and starting to be the code, across five CRUD endpoints whose interesting
+half is what they refuse.
+
+This one changes the question from *which rows?* to *what do they add up to?*
+The whole point is that the database answers it. A year of spending might be
+5,000 rows; the monthly chart above it is twelve numbers, and the difference
+between computing those twelve in PostgreSQL and computing them in a Python loop
+is the difference between an endpoint that stays fast and one that gets slower
+every month a user keeps using the app.
 
 ## Quick start
 
@@ -85,7 +91,46 @@ curl "http://127.0.0.1:8000/transactions?type=expense&limit=20" \
 curl -X PATCH http://127.0.0.1:8000/transactions/1 \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"amount":"45.00"}'
+
+# --- the dashboard numbers (milestone 5) ---
+
+# One row per month, gaps filled with zeros so a chart's x-axis is continuous
+curl "http://127.0.0.1:8000/summary/monthly?date_from=2026-01-01&date_to=2026-12-31" \
+  -H "Authorization: Bearer $TOKEN"
+
+# Where the money went, largest slice first (defaults to type=expense)
+curl "http://127.0.0.1:8000/summary/by-category" -H "Authorization: Bearer $TOKEN"
+
+# The headline pair, plus a savings rate
+curl "http://127.0.0.1:8000/summary/income-vs-expense" -H "Authorization: Bearer $TOKEN"
 ```
+
+<details>
+<summary>What <code>/summary/monthly</code> returns</summary>
+
+```json
+{
+  "date_from": "2026-01-01",
+  "date_to": "2026-12-31",
+  "months": [
+    {"month": "2026-01", "month_start": "2026-01-01",
+     "income": "3000.00", "expense": "1500.00", "net": "1500.00",
+     "transaction_count": 4},
+    {"month": "2026-02", "month_start": "2026-02-01",
+     "income": "0.00", "expense": "0.00", "net": "0.00",
+     "transaction_count": 0}
+  ]
+}
+```
+
+February has no transactions at all. `GROUP BY` returned no row for it — the
+bucket of zeros is filled in by the API, because a chart that skips from January
+to March draws a line implying February didn't happen. Money is a JSON *string*
+(`"1500.00"`), the same form `/transactions` already uses: a JSON number is an
+IEEE double, and a total that a double can't hold exactly would come back
+differing from the database in its last decimal.
+
+</details>
 
 > **You need an `account_id` first, and there is no `/accounts` endpoint yet** —
 > accounts and categories get their own routers in the next milestone. Until
@@ -109,8 +154,8 @@ curl -X PATCH http://127.0.0.1:8000/transactions/1 \
 [`docs/Finance-Tracker-Study-Guide.pdf`](docs/Finance-Tracker-Study-Guide.pdf) — a
 16-page walkthrough of the reasoning behind each decision, including the
 generated SQL, the gotchas, and interview Q&A. **Currently covers milestones 1–2
-(setup and the data model); the auth and transaction material above hasn't been
-folded in yet.** Its
+(setup and the data model); the auth, transaction and aggregation material above
+hasn't been folded in yet.** Its
 source is the sibling `.html` file; re-render it after edits with:
 
 ```bash
@@ -140,10 +185,12 @@ app/
 ├── routers/
 │   ├── health.py    # HTTP endpoints, grouped by feature
 │   ├── auth.py      # /auth/register, /auth/login, /auth/me
-│   └── transactions.py  # full CRUD, every query scoped to the token's user
+│   ├── transactions.py  # full CRUD, every query scoped to the token's user
+│   └── summary.py   # GROUP BY aggregates: monthly / by-category / in-vs-out
 └── schemas/         # Pydantic request/response shapes  (API contract)
     ├── user.py      # UserCreate (in) / UserRead (out) — the hash never appears
     ├── transaction.py   # Create / Update / Read — no `user_id` on any input
+    ├── summary.py   # output-only shapes; the aggregations take no body
     └── token.py     # {access_token, token_type}
 ```
 
@@ -504,6 +551,146 @@ SELECT * FROM transactions
   starting: a balance that's *usually* right is one nobody can trust or audit.
   Until then it stays at its default and the ledger is the source of truth.
 
+## Aggregations
+
+Three read-only endpoints, one idea: **the database does the arithmetic.**
+
+```
+GET /summary/monthly            ─┐
+GET /summary/by-category         ├─ all three:  WHERE user_id = :me   ← the scope
+GET /summary/income-vs-expense  ─┘              + optional account_id / date range
+                                                + GROUP BY  →  one row per bucket
+```
+
+| Endpoint | Groups by | Aggregates | Shape back |
+|---|---|---|---|
+| `/summary/monthly` | `date_trunc('month', occurred_on)` | `SUM ... FILTER`, `COUNT(*)` | one row per month, gaps filled |
+| `/summary/by-category` | `category_id, name` (LEFT JOIN) | `SUM`, `COUNT(*)`, `AVG` | slices + share of total, largest first |
+| `/summary/income-vs-expense` | `type` | `SUM`, `COUNT(*)`, `AVG`, `MAX` | two sides pivoted into one object |
+
+The monthly query, in full:
+
+```sql
+SELECT CAST(date_trunc('month', CAST(occurred_on AS TIMESTAMP)) AS DATE) AS month_start,
+       COALESCE(SUM(amount) FILTER (WHERE type = 'income'),  0) AS income,
+       COALESCE(SUM(amount) FILTER (WHERE type = 'expense'), 0) AS expense,
+       COUNT(*)                                                 AS transaction_count
+  FROM transactions
+ WHERE user_id = :me                     -- the scope, before any filter
+   AND occurred_on >= :date_from         -- ...the filters
+ GROUP BY 1
+ ORDER BY 1;
+```
+
+### The decisions worth defending
+
+- **The aggregate is the pagination.** `GET /transactions` needs a `limit` and a
+  ceiling because an unbounded list is a memory hazard. These endpoints need
+  neither, and that isn't an oversight — `GROUP BY` collapses arbitrarily many
+  transactions into one row per bucket, so the response size is bounded by the
+  calendar or by the user's category list rather than by their spending history.
+  The Python-loop version of these endpoints has a cost that grows every month a
+  user keeps using the app; this one's doesn't.
+
+- **`SUM(...) FILTER (WHERE type = 'income')` — conditional aggregation.** One
+  scan produces both totals, so each month arrives as a single row with income
+  and expense side by side. `GROUP BY (month, type)` is the naive shape and it
+  returns *up to* two rows per month, which every client then has to pivot — and
+  pivot carefully, since a month with only expenses yields one row, not two. The
+  portable spelling is `SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END)`;
+  `FILTER` is the same idea with the condition where it belongs.
+
+- **`COALESCE(..., 0)`, because an aggregate over zero rows is NULL.** SQL is
+  being precise about the difference between "nothing was added up" and "the
+  total was zero". For a chart those genuinely mean the same thing, so the API
+  collapses them. **That reasoning deliberately does not extend to
+  `savings_rate`**, which stays `null` when income is zero: percent-of-income
+  with no income is undefined, and both available lies are bad — `0` reads as
+  "saved nothing" (false; there was nothing to save) and `-100` reads as a
+  catastrophe. The test is whether zero is the *honest* answer, not whether it's
+  the convenient one.
+
+- **A month with no transactions still gets a bucket.** `GROUP BY` emits no row
+  for a group that has no rows, so a user who took January off gets a series
+  jumping from December to February — and every charting library draws a
+  straight line between them, implying a January value the data never contained.
+  Filling the gap in the API means every consumer gets the same answer instead
+  of each inventing its own. PostgreSQL can do this with `generate_series`
+  LEFT JOINed to the aggregate, and on a larger result that would be the right
+  call; here the bounds are often *derived from the rows the query just
+  returned*, so doing it in SQL would cost a second query or a CTE to save a
+  loop over twelve rows already in memory.
+
+- **The category join is a LEFT JOIN, and the ownership check is in the `ON`
+  clause.** `category_id` is nullable — an imported transaction is legitimately
+  uncategorized — and an inner join drops those rows, which is the worst kind of
+  bug: the response still looks complete, the slices still render, and the pie is
+  simply missing money. Moving `c.user_id = :me` from `ON` into `WHERE` looks
+  equivalent and silently undoes it, since unmatched rows have `c.user_id IS
+  NULL` after the join and `NULL = :me` isn't true. That's the classic way a LEFT
+  JOIN degrades into an inner one.
+
+- **`COUNT(*)`, not `COUNT(c.id)`.** `COUNT(column)` skips NULLs, so the
+  uncategorized group — whose `c.id` is NULL on every row — would report a count
+  of `0` sitting next to a real, non-zero total.
+
+- **`date_trunc` gets an explicit `::TIMESTAMP` cast.** PostgreSQL has
+  `date_trunc(text, timestamp)`, `(text, timestamptz)` and `(text, interval)`; a
+  `date` implicitly converts to two of them, and PostgreSQL breaks the tie by
+  *preferring `timestamptz`* — dragging the session's `TimeZone` setting into a
+  calculation that has nothing to do with clocks. Casting first picks the
+  overload exactly and keeps the arithmetic in calendar space, which is where
+  `occurred_on` already lives (it's a `Date`, not a `DateTime`, precisely so a
+  purchase can't land in the wrong month).
+
+- **`func.avg()` needs its type declared; `func.sum()` doesn't.** SQLAlchemy
+  treats `sum` and `max` as "return type from args", so they inherit
+  `Numeric(12, 2)` from the column. `avg` isn't in that set — it compiles with a
+  `NullType`, no result processing runs, and you get back whatever the driver
+  produced. On PostgreSQL that happens to be a `Decimal`, which means the code
+  would be leaning on psycopg's type mapping rather than on anything it stated.
+  `func.avg(col, type_=Numeric())` makes the contract the query's.
+
+- **SQL computes, Python formats.** Every figure that touches a transaction row
+  — `SUM`, `COUNT`, `AVG`, `MAX`, the grouping, the filtering, the ordering — is
+  the database's. Rounding to the cent, percent shares, the `"YYYY-MM"` label
+  and the gap-filling are Python's, over the handful of rows that came back.
+  Rounding in SQL would bake a *display* decision into the query, so the export,
+  the chart and the API would each need their own copy of it.
+
+- **Percent shares are rounded independently and need not total exactly 100.**
+  Three equal thirds come back as `33.33` three times. That's why every response
+  also carries the raw `total` it divided: a client that needs to reconcile does
+  it against the real figure, not against the rounded shares.
+
+- **`net` is computed from the already-rounded pair.** So `income - expense ==
+  net` holds exactly in the JSON a client receives. Rounding after the
+  subtraction instead would let a chart's own arithmetic disagree by a cent with
+  the number printed beside it — the kind of discrepancy that gets reported as a
+  bug in the ledger rather than as a rounding artefact.
+
+- **A missing `GROUP BY` group must not shift the other one.** A user with no
+  income produces exactly one row from `GROUP BY type`, and code that reads
+  `rows[0]` as income reports their *expenses* as earnings. The pivot goes
+  through a dict with an explicit zeroed default, because for a new account the
+  empty case is the normal one, not an edge.
+
+- **Filtering by someone else's `account_id` returns an empty summary, not
+  404** — same reasoning, and the same non-answer, as the ledger's list endpoint.
+  The `user_id` scope has already made the condition unsatisfiable.
+
+- **Why a missing scope would be worse here than on a list endpoint.** A leak on
+  `GET /transactions` at least hands back rows with ids someone can notice are
+  wrong. A missing `WHERE user_id = :me` on an aggregate silently folds other
+  people's money into a total that looks entirely plausible — there's no id to
+  spot, just a number that's too big.
+
+- **What this milestone deliberately does *not* do: cache, or add a
+  `top=N` collapse.** Both are real features and both are premature. The
+  aggregate already bounds the response size, and the queries are served by the
+  existing `(user_id, occurred_on)` index; adding a cache before there's a
+  measurement is how you acquire an invalidation bug in exchange for nothing.
+
 ## Why it's laid out this way (the interview answer)
 
 The guiding idea is **separation of concerns**: each folder owns one job, so a
@@ -524,11 +711,12 @@ change in one layer doesn't ripple through the others. Concretely:
   without the other, which is the point of the seam.
 
 - **`routers/` — the HTTP layer.** Each file is a `APIRouter` for one feature
-  area (`health`, `auth`, `transactions`; `accounts` later). `main.py` just
-  calls `include_router()` on each. This is what keeps `main.py` thin and lets
-  the API grow by *adding a file* rather than by growing one giant file — a
-  claim milestone 4 actually cashed: five new endpoints cost one new file and
-  one line in `main.py`, with nothing above it touched. Note that `main.py` says
+  area (`health`, `auth`, `transactions`, `summary`; `accounts` later).
+  `main.py` just calls `include_router()` on each. This is what keeps `main.py`
+  thin and lets the API grow by *adding a file* rather than by growing one giant
+  file — a claim milestones 4 and 5 both cashed: five CRUD endpoints, then three
+  aggregation endpoints, each costing one new file and one line in `main.py`
+  with nothing above it touched. Note that `main.py` says
   nothing about which routes are protected — that lives in each handler's
   signature, so a new route can't be left unguarded by an omission in the
   wiring.
