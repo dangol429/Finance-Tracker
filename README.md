@@ -1,40 +1,101 @@
-# Personal Finance Tracker — Backend
+# Personal Finance Tracker
 
-FastAPI + PostgreSQL + SQLAlchemy backend for a personal finance tracker.
-**This is milestone 8: the project is containerised and tested.** `docker
-compose up` brings the API up alongside Postgres with one command, and `pytest`
-runs twenty tests against a real database in about ten seconds.
+A personal finance dashboard: record what you spend, import a bank statement,
+and see where the money actually went.
 
-Milestone 2 built the four core tables, milestone 3 added the identity layer,
-milestone 4 was where the two met — `WHERE user_id = :me` stopping being the plan
-and starting to be the code — milestone 5 changed the question from *which rows?*
-to *what do they add up to?*, and milestone 6 added bulk CSV import so a year of
-history doesn't have to be typed in.
+**FastAPI · PostgreSQL · SQLAlchemy · React · TypeScript · Recharts · Docker**
 
-The last two milestones don't add a feature, and that's the point. Everything
-above is now enough code that changing it safely requires knowing whether it
-still works, and running it at all requires a database, a role, a schema and four
-environment variables lined up correctly. Milestone 7 answers the first with a
-suite small enough to actually run; milestone 8 answers the second by making the
-whole environment a file in the repository. Between them they're what turns the
-project from something that works on one machine into something you can hand to
-someone else.
+<!-- Add once deployed — see DEPLOYMENT.md
+**[Live demo](https://your-app.vercel.app)** · demo@example.com / demo1234
+-->
+
+<!--
+SCREENSHOTS — the one thing this README is still missing.
+
+Take three, at 1440px wide, in dark mode, with the seeded demo data:
+  docs/screenshots/dashboard.png    the stat cards + all three charts
+  docs/screenshots/transactions.png the table mid-edit, with filters visible
+  docs/screenshots/mobile.png       the card list at 390px
+
+then replace this comment with:
+
+| Dashboard | Transactions |
+|---|---|
+| ![Dashboard](docs/screenshots/dashboard.png) | ![Transactions](docs/screenshots/transactions.png) |
+-->
+
+---
+
+## What it does
+
+| | |
+|---|---|
+| **Record** | Add, edit and delete transactions inline, with optimistic updates so nothing waits on the network |
+| **Import** | Upload a bank-statement CSV; bad rows are skipped and reported by line number, not silently guessed at |
+| **Analyse** | Spending by category, monthly trend, and net position — every figure computed by PostgreSQL, not in a Python loop |
+| **Filter** | Date range, account, category, type and debounced search, all driven from the URL so a view is shareable |
+
+## The stack, and why
+
+| Layer | Choice | Why |
+|---|---|---|
+| API | FastAPI | Typed handlers that generate their own OpenAPI spec; dependencies make auth a function parameter rather than a URL pattern |
+| Database | PostgreSQL | `GROUP BY`, `date_trunc`, `SUM(...) FILTER`, real `NUMERIC`, real enums, real foreign keys |
+| ORM | SQLAlchemy 2.0 | Typed models, and `insertmanyvalues` for batched inserts on import |
+| Frontend | React + TypeScript + Vite | Typed API contract end to end; instant dev server |
+| Data layer | TanStack Query | Optimistic updates with rollback, and cache invalidation that keeps table and charts in step |
+| Charts | Recharts | Composable SVG charts that theme from CSS custom properties |
+| Styling | CSS Modules + design tokens | Scoped class names, one token file, dark and light from the same variables |
+| Infra | Docker Compose | One command to a working stack; the same image deploys |
 
 ## Quick start
 
-**With Docker (recommended — nothing to install but Docker):**
+**Everything, with Docker:**
 
 ```bash
-docker compose up --build          # Postgres + schema + API, wired together
+docker compose up --build          # Postgres + schema + API
 # → http://127.0.0.1:8000/docs
 
+cd frontend && npm install && npm run dev
+# → http://localhost:5173
+```
+
+Compose starts Postgres, waits for it to be genuinely ready, runs the schema
+step once, and only then starts the API — see [Docker](#docker) for how each of
+those is enforced. Sign up in the browser and the app walks you through creating
+your first account.
+
+```bash
 docker compose down                # stop, keeping the data
 docker compose down -v             # stop and delete the database volume
 ```
 
-That's the whole setup. Compose starts Postgres, waits for it to be genuinely
-ready, runs the schema step once, and only then starts the API — see
-[Docker](#docker) for how each of those is enforced.
+**Tests** (needs a Postgres; `docker compose up -d db` is enough):
+
+```bash
+pip install -r requirements-dev.txt && pytest
+```
+
+**Deploying:** see [DEPLOYMENT.md](DEPLOYMENT.md) — Vercel for the frontend,
+Railway for the API and database, and the two environment variables that break
+everything if they disagree.
+
+---
+
+## How it was built
+
+Nine milestones, each with a section below explaining the decisions worth
+defending:
+
+| | Milestone | |
+|---|---|---|
+| 1–2 | Setup and the data model | [The data model](#the-data-model) |
+| 3–4 | JWT auth, then per-user scoping | [Authentication](#authentication) · [Transactions](#transactions) |
+| 5 | Aggregation endpoints | [Aggregations](#aggregations) |
+| 6 | CSV import | [CSV import](#csv-import) |
+| 7 | Test suite | [Tests](#tests) |
+| 8 | Docker Compose | [Docker](#docker) |
+| 9 | React frontend | [Frontend](#frontend) |
 
 <details>
 <summary>Without Docker — running against your own PostgreSQL</summary>
@@ -259,9 +320,12 @@ chrome --headless=new --no-pdf-header-footer \
 Dockerfile           # Two-stage build: deps in a venv, then a clean runtime
 docker-compose.yml   # db + one-shot schema step + api, wired together
 .dockerignore        # Keeps .venv/, .git/ and .env out of the build context
+DEPLOYMENT.md        # Vercel + Railway, and the two env vars that break it
 pytest.ini           # pythonpath, testpaths, --strict-markers
 requirements.txt     # Runtime deps — what the image installs
 requirements-dev.txt # pytest, httpx, ruff — deliberately NOT in the image
+
+frontend/            # React + TypeScript SPA (see the Frontend section)
 
 tests/
 ├── conftest.py      # Real Postgres, one rolled-back transaction per test
@@ -287,12 +351,16 @@ app/
 │   ├── auth.py      # /auth/register, /auth/login, /auth/me
 │   ├── transactions.py  # full CRUD, every query scoped to the token's user
 │   ├── summary.py   # GROUP BY aggregates: monthly / by-category / in-vs-out
-│   └── csv_import.py    # multipart upload -> parse -> validate -> one batch
+│   ├── csv_import.py    # multipart upload -> parse -> validate -> one batch
+│   ├── accounts.py  # list + create — the frontend needs these to exist
+│   └── categories.py    # list (filterable by type) + create
 └── schemas/         # Pydantic request/response shapes  (API contract)
     ├── user.py      # UserCreate (in) / UserRead (out) — the hash never appears
     ├── transaction.py   # Create / Update / Read — no `user_id` on any input
     ├── summary.py   # output-only shapes; the aggregations take no body
     ├── csv_import.py    # the import report: a tally plus a defect list
+    ├── account.py   # AccountCreate / AccountRead
+    ├── category.py  # CategoryCreate / CategoryRead
     └── token.py     # {access_token, token_type}
 ```
 
@@ -1086,6 +1154,156 @@ The final image is ~300 MB and runs as a non-root user.
   floating tag means the image silently changes between two builds of the same
   commit — and a new Postgres *major* wouldn't read the existing volume at all,
   turning `compose pull` into a restart loop.
+
+## Frontend
+
+```
+frontend/src/
+├── api/          client.ts (fetch + errors) · types.ts (the contract) · queries.ts (hooks)
+├── auth/         AuthContext.tsx · ProtectedRoute.tsx
+├── components/   ui/ · layout/ · dashboard/ · transactions/ · filters/
+├── hooks/        useFilters (URL state) · useCountUp · useDebouncedValue · useTheme
+├── lib/          format.ts (money, dates) · palette.ts (chart colours from CSS)
+├── pages/        Login · Signup · Dashboard · Transactions · Onboarding
+└── styles/       tokens.css (every colour, space, duration) · global.css
+```
+
+### The decisions worth defending
+
+- **Money crosses the wire as a `string`, and the types say so.** The API sends
+  `"1500.00"` because a JSON number is an IEEE double, and a total a double
+  can't hold exactly arrives differing from the database in its last decimal —
+  on precisely the figures a user checks against their bank. Typing them as
+  `string` means you cannot add two amounts with `+` and get `"45.20100.00"`
+  past the compiler without noticing. `lib/format.ts` is the only place that
+  parses.
+
+- **Auth state has three values, not a boolean.** `loading | authenticated |
+  anonymous`, because on first paint the app genuinely does not know: a token
+  exists in storage but has not been verified. Collapsing that into
+  `isAuthenticated: false` makes the app flash the login page on every refresh
+  before redirecting back. That flash is the most common bug in hand-rolled SPA
+  auth, and it is a modelling error rather than a timing one.
+
+- **Route guards are layout routes, not per-page wrappers.** A new `<Route>`
+  inside the `RequireAuth` block is protected by virtue of being there. The
+  dangerous mistake — adding a page and forgetting to protect it — becomes
+  structurally hard rather than something to remember.
+
+- **The token is in `localStorage`, with eyes open.** It is readable by any
+  script on the origin, so a successful XSS steals the session. The alternative
+  — an httpOnly cookie — is immune to that but needs CSRF protection and a
+  backend that sets cookies, which this one doesn't (it issues bearer tokens).
+  What makes it defensible rather than merely convenient: the token lives 30
+  minutes and there is no refresh token to steal alongside it. The real fix is a
+  refresh-token cookie, and that's a backend milestone.
+
+- **Optimistic updates cancel in-flight queries first.** `onMutate` calls
+  `cancelQueries` before snapshotting, because a refetch already in flight when
+  the user hits save lands *after* the optimistic update and overwrites it with
+  data that predates the change. The row flickers back to its old value — which
+  looks exactly like the save having failed. Every mutation snapshots, applies,
+  and rolls back to the exact previous cache on error.
+
+- **Optimistic rows get negative ids.** Server ids are positive, so a temporary
+  id can never collide. That matters because React keys rows by id, and a
+  temporary id matching a real one makes the reconciler reuse the wrong DOM node
+  when the real row arrives. Rows with a negative id have their edit and delete
+  buttons disabled — there is nothing on the server to address yet.
+
+- **Writes invalidate the summaries too.** Adding a transaction changes the
+  monthly chart, the donut and the stat cards, none of which the mutation
+  touched. Forgetting that is how a dashboard ends up showing a table containing
+  a new row above charts that don't.
+
+- **Filter state lives in the URL.** A filtered view is something people
+  bookmark and share; in component state, a refresh silently resets it and the
+  back button leaves the page instead of undoing a filter. It also removes a
+  whole class of bug — the table and the charts cannot disagree about what is
+  being shown, because they read the same parameters rather than each keeping a
+  copy.
+
+- **The search box is debounced, the input is not.** Typing "groceries" would
+  otherwise fire nine requests, eight obsolete before they land, with results
+  flickering through prefixes. The *input* stays bound to raw state so typing
+  feels instant; only the query waits for a pause. Debouncing the input itself
+  is the classic mistake — it makes typing feel broken.
+
+- **Period and account filter everything; category, type and search filter only
+  the table.** The aggregation endpoints take a date range and an account, and a
+  category breakdown narrowed to one category has nothing to say. The filter bar
+  states this in a line of text rather than leaving the user to notice, because
+  a filter that silently applies to half the screen is worse than one that says
+  which half.
+
+- **`placeholderData` keeps the previous page rendered while the next loads.**
+  Changing a filter dims the table instead of collapsing it to skeletons and
+  back. Skeletons appear only on a genuine first load — `isLoading`, not
+  `isFetching`. This single distinction is most of what makes the app feel fast
+  rather than merely be fast.
+
+- **The count-up animates from the previous value, not from zero.** When a
+  filter changes and the total goes from $2,400 to $2,650, counting from zero
+  implies the data was replaced; counting from the old figure shows the *change*,
+  which is the information the animation exists to convey. It also checks
+  `prefers-reduced-motion` in JS — a CSS media query cannot stop a
+  `requestAnimationFrame` loop, and for someone with a vestibular disorder,
+  numbers spinning on every filter change is a symptom trigger rather than
+  decoration.
+
+- **One token file, and dark is the designed theme.** Semantic names
+  (`--surface-raised`, not `--grey-800`) because the literal name has to be
+  renamed the moment the value changes. Light mode redefines every token rather
+  than inverting, because a dark palette flipped mechanically produces muddy
+  greys and text that fails contrast. The theme is applied before first render,
+  not in an effect, or the page renders dark and then flips.
+
+- **Chart colours are read from the CSS custom properties.** Recharts takes
+  colours as props, so it cannot use `var(--chart-1)` on an SVG fill in a way
+  that survives a theme switch. Reading the computed values keeps one palette
+  serving both — the alternative is a second copy of eight hex codes that has to
+  be kept in step by hand, and won't be.
+
+- **A category's colour is keyed on its id, not its index.** The donut is sorted
+  largest-first, so a category's *position* changes whenever spending does. A
+  legend whose colours reshuffle month to month is actively misleading.
+
+- **Empty states distinguish three situations.** "You have nothing yet",
+  "your filters excluded everything" and "something failed" need different
+  sentences and different next actions. Rendering nothing — or the words "No
+  data" — leaves the user unable to tell which they are looking at.
+
+- **The table becomes cards below 720px, as a different component tree.** A
+  table squeezed into 360px is either scrolled sideways or has columns too
+  narrow to read. Rendering both and hiding one with CSS would put every row in
+  the DOM twice, so `useMediaQuery` picks one.
+
+- **A new user sees onboarding, not an empty dashboard.** Every newly registered
+  user owns no accounts, and `POST /transactions` requires one — so the default
+  first screen would be four zeroes above three empty charts and a table that
+  cannot accept a row. Technically accurate, and the exact moment someone
+  decides an app is broken.
+
+- **What this milestone deliberately does *not* do.** No component tests — the
+  backend suite covers the contract, and testing React well is a project of its
+  own. No i18n, no virtualised table (the API caps a page at 200 rows), no
+  refresh-token flow. Each is a real feature; none is a gap this app has felt.
+
+### What the frontend needed from the backend
+
+Three things had to be added before a browser could talk to this API at all, and
+they're worth naming because they were invisible while `curl` was the only
+client:
+
+- **CORS.** Vite serves on `:5173` and the API on `:8000`, which are different
+  origins to a browser. Without the middleware, every request is blocked before
+  it is sent and the failure looks like a network error rather than a policy.
+- **`GET`/`POST /accounts` and `/categories`.** The README used to tell you to
+  seed these from a Python shell. A browser cannot do that, and a user who has
+  just signed up owns no account — so "create an account" went from a
+  convenience to the first thing the app must let you do.
+- **`?q=` on `GET /transactions`.** Searching client-side would only search the
+  page already loaded, which is a search box that lies.
 
 ## Why it's laid out this way (the interview answer)
 

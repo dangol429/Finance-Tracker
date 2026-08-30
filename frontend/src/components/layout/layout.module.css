@@ -1,0 +1,240 @@
+/*
+ * The application shell: sidebar, top bar, content column.
+ *
+ * The responsive strategy in one sentence: **the sidebar is a sidebar on a
+ * desktop and a slide-over on a phone, and nothing else about the layout
+ * changes.** Content is a single column at every width, which is what lets the
+ * dashboard grids below simply reflow rather than needing a second layout.
+ */
+
+.shell {
+  display: grid;
+  /* Named areas rather than positional columns, so the mobile override below is
+     a re-declaration of the template instead of a set of column overrides that
+     have to be kept mentally in sync. */
+  grid-template-columns: var(--sidebar-width) 1fr;
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    "sidebar topbar"
+    "sidebar main";
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* ---------------------------------------------------------------- Sidebar */
+
+.sidebar {
+  grid-area: sidebar;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-5) var(--space-4);
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border);
+  /* Sticky rather than fixed: it participates in the grid, so the content
+     column does not need a matching margin that would drift out of step with
+     --sidebar-width. */
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  height: 100dvh;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-2);
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+.brandMark {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: var(--accent-text);
+  flex-shrink: 0;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.navLink {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  transition: background-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.navLink:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.navLinkActive {
+  background: var(--accent-subtle);
+  color: var(--accent);
+}
+
+.sidebarFooter {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+.userRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-2);
+  min-width: 0;
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-full);
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  flex-shrink: 0;
+  text-transform: uppercase;
+}
+
+.userEmail {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  /* The three properties that actually truncate text in a flex child. `min-width:
+     0` on the parent is the one people miss — without it the flex item refuses
+     to shrink below its content and the ellipsis never appears. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ----------------------------------------------------------------- Topbar */
+
+.topbar {
+  grid-area: topbar;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  height: var(--topbar-height);
+  padding: 0 var(--space-6);
+  background: color-mix(in srgb, var(--bg-base) 82%, transparent);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+}
+
+.pageTitle {
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+}
+
+.topbarActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.menuButton {
+  display: none;
+}
+
+/* -------------------------------------------------------------------- Main */
+
+.main {
+  grid-area: main;
+  padding: var(--space-6);
+  max-width: var(--content-max);
+  width: 100%;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+/* -------------------------------------------------------------- Responsive */
+
+/*
+ * One breakpoint, at the width where a 232px sidebar stops leaving enough room
+ * for a chart. Picked from the content rather than from a device: "tablet" and
+ * "phone" are not real categories any more, but "the charts got too narrow to
+ * read" is a fact about this layout.
+ */
+@media (max-width: 900px) {
+  .shell {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "topbar"
+      "main";
+  }
+
+  .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: min(272px, 82vw);
+    z-index: var(--z-modal);
+    transform: translateX(-100%);
+    transition: transform var(--duration-base) var(--ease-out);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .sidebarOpen {
+    transform: translateX(0);
+  }
+
+  .scrim {
+    position: fixed;
+    inset: 0;
+    z-index: calc(var(--z-modal) - 1);
+    background: var(--bg-overlay);
+    animation: scrimIn var(--duration-fast) var(--ease-out);
+  }
+
+  .menuButton {
+    display: inline-flex;
+  }
+
+  .topbar {
+    padding: 0 var(--space-4);
+  }
+
+  .main {
+    padding: var(--space-4);
+  }
+}
+
+@keyframes scrimIn {
+  from {
+    opacity: 0;
+  }
+}

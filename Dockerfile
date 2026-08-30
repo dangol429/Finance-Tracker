@@ -95,8 +95,21 @@ EXPOSE 8000
 # "all interfaces in this network namespace", which is what makes the published
 # port work.
 #
+# `${PORT:-8000}` is why this is the *shell* form of CMD rather than the usual
+# exec form. Railway, Render, Heroku and Cloud Run all assign a port at runtime
+# and pass it in as `$PORT`; a hard-coded 8000 means the platform's health check
+# hits a port nothing is listening on and the deploy fails with no useful log.
+# The exec form (`CMD ["uvicorn", ...]`) does not run a shell, so `$PORT` would
+# be passed through as the literal four characters and uvicorn would reject it.
+#
+# `exec` is what makes the shell form safe: without it, `sh` stays alive as PID 1
+# and uvicorn runs as its child, so the SIGTERM sent on shutdown reaches the
+# shell — which ignores it — and the platform kills the container after its grace
+# period instead of letting it close connections cleanly. `exec` replaces the
+# shell with uvicorn, so uvicorn *is* PID 1 and gets the signal.
+#
 # No `--reload` here: the image is the production artifact, and the reloader
 # watches the filesystem and spawns a child process for no benefit when the code
 # is baked in. The compose file overrides this command for development, where
 # the code is bind-mounted and reloading is the entire point.
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD exec uvicorn app.main:app --host 0.0.0.0 --port "${PORT:-8000}"

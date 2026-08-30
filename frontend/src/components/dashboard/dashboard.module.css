@@ -1,0 +1,304 @@
+/* Stat cards, chart cards, and the dashboard grid. */
+
+/* ------------------------------------------------------------- Stat cards */
+
+.statGrid {
+  display: grid;
+  /* `auto-fit` + `minmax` rather than explicit breakpoints: the cards go 4-up,
+     then 2-up, then 1-up on their own, at whatever width they stop fitting.
+     One line replaces three media queries and cannot disagree with them. */
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-4);
+}
+
+.statCard {
+  position: relative;
+  overflow: hidden;
+  padding: var(--space-5);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  transition: transform var(--duration-base) var(--ease-out),
+    border-color var(--duration-base) var(--ease-out),
+    box-shadow var(--duration-base) var(--ease-out);
+
+  /* Mount animation. `both` keeps the element at the keyframe's starting
+     opacity *before* the delay elapses — without it, a staggered card flashes
+     at full opacity for one frame and then starts fading in. */
+  animation: statIn var(--duration-base) var(--ease-out) both;
+}
+
+.statCard:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
+}
+
+/* A faint accent wash that appears on hover, drawn as a pseudo-element so it
+   can fade independently of the card's own background. */
+.statCard::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(
+    22rem 12rem at 100% 0%,
+    var(--accent-subtle),
+    transparent
+  );
+  transition: opacity var(--duration-base) var(--ease-out);
+}
+
+.statCard:hover::after {
+  opacity: 1;
+}
+
+.statHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.statIcon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-md);
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.statLabel {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--text-secondary);
+}
+
+.statValue {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  line-height: var(--leading-tight);
+}
+
+.statValueIncome {
+  color: var(--income);
+}
+.statValueExpense {
+  color: var(--expense);
+}
+
+.statMeta {
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 1.25em;
+}
+
+.statDelta {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-weight: var(--weight-medium);
+}
+
+.deltaUp {
+  color: var(--income);
+}
+.deltaDown {
+  color: var(--expense);
+}
+
+@keyframes statIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+/* ------------------------------------------------------------ Chart layout */
+
+.chartGrid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: var(--space-4);
+}
+
+.chartGridFull {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+}
+
+/* A fixed height on the chart container, not a percentage.
+   `ResponsiveContainer` measures its parent, and a parent sized by its content
+   is a circular dependency — the chart collapses to zero height. This is the
+   single most common Recharts problem and the fix is always the same: give the
+   wrapper a real height. */
+.chartBody {
+  height: 280px;
+}
+
+.chartBodyTall {
+  height: 320px;
+}
+
+.donutWrap {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+}
+
+.donutCenter {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none; /* never steal a hover from the slices underneath */
+  text-align: center;
+}
+
+.donutCenterLabel {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.donutCenterValue {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.donutRelative {
+  position: relative;
+  height: 280px;
+}
+
+/* ---------------------------------------------------------------- Legend */
+
+.legend {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  max-height: 132px;
+  overflow-y: auto;
+}
+
+.legendRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.legendSwatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.legendName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+
+.legendValue {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  font-weight: var(--weight-medium);
+}
+
+.legendShare {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  min-width: 3.5em;
+  text-align: right;
+}
+
+/* --------------------------------------------------------------- Tooltip */
+
+.tooltip {
+  padding: var(--space-3);
+  background: var(--bg-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  font-size: var(--text-sm);
+  min-width: 150px;
+}
+
+.tooltipTitle {
+  font-weight: var(--weight-semibold);
+  margin-bottom: var(--space-2);
+  color: var(--text-primary);
+}
+
+.tooltipRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  color: var(--text-secondary);
+}
+
+.tooltipRow + .tooltipRow {
+  margin-top: 3px;
+}
+
+.tooltipKey {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.tooltipValue {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  font-weight: var(--weight-medium);
+}
+
+.tooltipDivider {
+  height: 1px;
+  background: var(--border);
+  margin: var(--space-2) 0;
+}
+
+/* ------------------------------------------------------------- Responsive */
+
+@media (max-width: 1080px) {
+  .chartGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .statCard {
+    padding: var(--space-4);
+  }
+  .statValue {
+    font-size: var(--text-lg);
+  }
+  .chartBody,
+  .chartBodyTall,
+  .donutRelative {
+    height: 240px;
+  }
+}

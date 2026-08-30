@@ -1,0 +1,98 @@
+/* The signed-out screens: login and signup. */
+
+.page {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: var(--space-5);
+
+  /* Two very soft radial washes behind the card. Enough to stop a dark page
+     reading as a flat void, faint enough that it never competes with the form.
+     Fixed positions rather than animated: a moving gradient behind a login form
+     is the kind of flourish that looks impressive once and irritating daily. */
+  background:
+    radial-gradient(
+      60rem 40rem at 15% -10%,
+      color-mix(in srgb, var(--accent) 12%, transparent),
+      transparent
+    ),
+    radial-gradient(
+      50rem 35rem at 110% 110%,
+      color-mix(in srgb, var(--income) 9%, transparent),
+      transparent
+    ),
+    var(--bg-base);
+}
+
+.card {
+  width: 100%;
+  max-width: 400px;
+  padding: var(--space-6);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  animation: cardIn var(--duration-base) var(--ease-out);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.02em;
+}
+
+.brandMark {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.title {
+  font-size: var(--text-lg);
+  margin-bottom: var(--space-1);
+}
+
+.subtitle {
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-5);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.footer {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.demoNote {
+  margin-top: var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  text-align: center;
+  line-height: var(--leading-normal);
+}
+
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}

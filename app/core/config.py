@@ -8,7 +8,7 @@ validated source of truth.
 
 from typing import Literal, Self
 
-from pydantic import model_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # The placeholder that ships in .env.example so the app boots on a fresh clone.
@@ -82,6 +82,39 @@ class Settings(BaseSettings):
     # (The usual next step is a long-lived refresh token stored server-side, so
     # revocation has something to revoke — a later milestone.)
     access_token_expire_minutes: int = 30
+
+    # --- CORS ---
+    # Which browser origins may call this API.
+    #
+    # Needed the moment a frontend exists on a different origin, which in
+    # development it always does: Vite serves on :5173 and this serves on :8000,
+    # and to a browser those are different origins. Without this the browser
+    # blocks every request before it is sent, and the failure looks like a
+    # network error rather than a policy decision.
+    #
+    # An explicit list, never `["*"]`. The wildcard cannot be combined with
+    # credentialed requests, and it means any page on the internet can call this
+    # API with a user's session — the entire attack CORS exists to prevent.
+    #
+    # Comma-separated in the environment (`CORS_ORIGINS=https://a.com,https://b.com`)
+    # because that is what a deployment platform's env-var field can hold;
+    # `_split_cors_origins` below turns it into a list.
+    cors_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def _split_cors_origins(cls, value: object) -> object:
+        """Accept a comma-separated string as well as a real list.
+
+        pydantic-settings parses a `list[str]` field from the environment as
+        JSON, so `CORS_ORIGINS=https://app.vercel.app` fails to parse and
+        `["https://app.vercel.app"]` is what it demands instead. Requiring JSON
+        quoting inside a hosting dashboard's text box is a papercut that costs
+        someone an afternoon, so a plain comma-separated string is accepted too.
+        """
+        if isinstance(value, str) and not value.strip().startswith("["):
+            return [origin.strip() for origin in value.split(",") if origin.strip()]
+        return value
 
     # env_file: read a local .env for development. Real environment variables
     #   still win, which is what keeps production secrets out of files.

@@ -7,6 +7,7 @@ Run locally:  uvicorn app.main:app --reload
 """
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 # Imported for its side effect: registering every ORM model on Base.metadata
 # and in the mapper registry. Without it, the first query against a
@@ -14,13 +15,43 @@ from fastapi import FastAPI
 # It does NOT create tables — that's `python -m app.db.init_db`.
 import app.models  # noqa: F401
 from app.core.config import settings
-from app.routers import auth, csv_import, health, summary, transactions
+from app.routers import (
+    accounts,
+    auth,
+    categories,
+    csv_import,
+    health,
+    summary,
+    transactions,
+)
 
 # `title` shows up in the generated OpenAPI spec and on the /docs page — the
 # API documents itself from this object, so metadata set here isn't cosmetic.
 # Both values come from `settings`, never from a literal, so behaviour is
 # configured in one place (.env) rather than edited into the source.
 app = FastAPI(title=settings.app_name, debug=settings.debug)
+
+# Cross-Origin Resource Sharing. The browser, not this app, enforces it — what
+# the middleware does is answer the preflight `OPTIONS` request and attach the
+# `Access-Control-Allow-*` headers that tell the browser the call is permitted.
+#
+# This is the one piece of app-level wiring that genuinely belongs here rather
+# than in a route signature, because it is a property of the *deployment* (which
+# frontends exist and where they are served from), not of any endpoint.
+#
+# `allow_credentials=True` alongside an explicit origin list is deliberate: the
+# combination is what the spec requires, and `allow_origins=["*"]` would silently
+# stop credentialed requests working. This app sends its token in an
+# `Authorization` header rather than a cookie, so credentials are not strictly
+# needed today — it is set because the day a refresh-token cookie is added is
+# not the day anyone will remember to come back and change this.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Register feature routers. Add new ones here as the API grows.
 #
@@ -65,3 +96,10 @@ app.include_router(transactions.router)
 # scope in the WHERE clause is the whole of the access story and the size of the
 # answer is bounded by the calendar rather than by the ledger.
 app.include_router(summary.router)
+
+# Accounts and categories — the two lists the frontend needs before a user can
+# record anything at all. Promised as "the next milestone" for several
+# milestones; cashed in when a browser became the client, because a newly
+# registered user owns no account and `POST /transactions` requires one.
+app.include_router(accounts.router)
+app.include_router(categories.router)

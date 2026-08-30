@@ -1,0 +1,194 @@
+/*
+ * Design tokens — every colour, space, size and duration the app uses.
+ *
+ * **Why this file exists.** CSS Modules scope class *names*, which stops two
+ * components fighting over `.card`. They do nothing about the other kind of
+ * drift: eleven slightly different greys, four blues that were all meant to be
+ * the accent, spacing that goes 8, 12, 16, 15. Scoping makes components
+ * independent; a token file is what makes them look like one product anyway.
+ *
+ * **Dark first, and light as a genuine second theme.** The brief is a dark
+ * financial dashboard, so the dark values are the designed ones — but every
+ * token is redefined under `[data-theme="light"]` rather than left to invert
+ * itself, because a dark theme flipped mechanically to light produces muddy
+ * greys and text that fails contrast. `useTheme` sets the attribute on <html>.
+ *
+ * **Semantic names, not literal ones.** `--surface-raised`, not `--grey-800`.
+ * The literal name has to be renamed the moment the value changes, and the
+ * whole point of a token is that the value can change.
+ */
+
+:root {
+  /* ---------------------------------------------------------------- Colour */
+
+  /* Backgrounds, in depth order: the page, cards on it, things on top of those.
+     Three levels is enough to build hierarchy and few enough to keep straight. */
+  --bg-base: #0b0d12;
+  --bg-surface: #12151d;
+  --bg-raised: #1a1e28;
+  --bg-overlay: rgba(6, 8, 12, 0.72);
+
+  /* Hover/active washes. Alpha rather than another opaque grey, so they layer
+     correctly over whichever surface they land on. */
+  --bg-hover: rgba(255, 255, 255, 0.04);
+  --bg-active: rgba(255, 255, 255, 0.07);
+
+  --border: #232833;
+  --border-strong: #323947;
+
+  /* Text, in a deliberate three-step ramp. Primary is not pure white: #fff on a
+     near-black background produces halation that makes long text feel harsh. */
+  --text-primary: #e8ecf4;
+  --text-secondary: #9aa4b8;
+  --text-muted: #646e82;
+
+  /* The accent. One hue, three roles — a second accent colour is how a design
+     starts looking like two designs. */
+  --accent: #4f8cff;
+  --accent-hover: #6b9dff;
+  --accent-subtle: rgba(79, 140, 255, 0.12);
+  --accent-text: #ffffff;
+
+  /* Money has two directions and they must be legible to colour-blind viewers,
+     so the app never uses hue *alone*: income is prefixed `+`, expense `−`, and
+     the two also differ sharply in lightness. */
+  --income: #34d399;
+  --income-subtle: rgba(52, 211, 153, 0.12);
+  --expense: #f87171;
+  --expense-subtle: rgba(248, 113, 113, 0.12);
+
+  --danger: #ef4444;
+  --danger-hover: #f26363;
+  --danger-subtle: rgba(239, 68, 68, 0.12);
+  --warning: #fbbf24;
+
+  /* Chart series. Ordered so that adjacent slices in a donut are distinguishable
+     — the sequence alternates hue family rather than walking a gradient, which
+     is what makes a 7-slice chart readable without a legend lookup every time. */
+  --chart-1: #4f8cff;
+  --chart-2: #34d399;
+  --chart-3: #a78bfa;
+  --chart-4: #fbbf24;
+  --chart-5: #f87171;
+  --chart-6: #22d3ee;
+  --chart-7: #fb923c;
+  --chart-8: #94a3b8;
+
+  /* ---------------------------------------------------------------- Spacing */
+
+  /* A 4px base scale. The constraint is the feature: with only these steps
+     available, two components built a month apart still line up. */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4rem;
+
+  /* ------------------------------------------------------------------- Type */
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  /* Tabular figures for anything a person compares column-to-column. Without
+     this, proportional digits make a column of amounts ragged and genuinely
+     harder to scan — the single highest-value typographic choice in a finance
+     UI. */
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono",
+    Menlo, Consolas, monospace;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.75rem;
+  --text-2xl: 2.25rem;
+
+  --leading-tight: 1.2;
+  --leading-normal: 1.5;
+
+  --weight-normal: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+
+  /* ----------------------------------------------------------------- Shape */
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-full: 999px;
+
+  /* Shadows are near-black rather than tinted, because on a dark surface a
+     coloured shadow reads as a glow. */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.45);
+
+  /* --------------------------------------------------------------- Motion */
+
+  /* Two durations. `fast` is for things that must feel instant (hover, focus);
+     `base` is for things that need to be followed by the eye (mount, expand).
+     Anything slower than 300ms in a dashboard reads as lag, not polish. */
+  --duration-fast: 120ms;
+  --duration-base: 240ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* ---------------------------------------------------------------- Layout */
+
+  --sidebar-width: 232px;
+  --topbar-height: 60px;
+  --content-max: 1400px;
+
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-modal: 300;
+}
+
+[data-theme="light"] {
+  --bg-base: #f6f7f9;
+  --bg-surface: #ffffff;
+  --bg-raised: #ffffff;
+  --bg-overlay: rgba(15, 20, 30, 0.45);
+
+  --bg-hover: rgba(10, 15, 25, 0.04);
+  --bg-active: rgba(10, 15, 25, 0.07);
+
+  --border: #e3e6ec;
+  --border-strong: #cbd1db;
+
+  --text-primary: #131722;
+  --text-secondary: #576076;
+  --text-muted: #858da0;
+
+  --accent: #2f6fe4;
+  --accent-hover: #2760cc;
+  --accent-subtle: rgba(47, 111, 228, 0.1);
+
+  /* Darkened from their dark-theme values: the same green on white fails
+     contrast at small sizes, and amounts are rendered small. */
+  --income: #0f9d68;
+  --income-subtle: rgba(15, 157, 104, 0.1);
+  --expense: #d94141;
+  --expense-subtle: rgba(217, 65, 65, 0.1);
+
+  --danger: #d93030;
+  --danger-hover: #c02a2a;
+  --danger-subtle: rgba(217, 48, 48, 0.1);
+  --warning: #b47605;
+
+  --chart-1: #2f6fe4;
+  --chart-2: #0f9d68;
+  --chart-3: #7c5cd6;
+  --chart-4: #d99400;
+  --chart-5: #d94141;
+  --chart-6: #0d9dbb;
+  --chart-7: #dd7016;
+  --chart-8: #6b7688;
+
+  --shadow-sm: 0 1px 2px rgba(15, 20, 30, 0.06);
+  --shadow-md: 0 4px 12px rgba(15, 20, 30, 0.08);
+  --shadow-lg: 0 12px 32px rgba(15, 20, 30, 0.12);
+}

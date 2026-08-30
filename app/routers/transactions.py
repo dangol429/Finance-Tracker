@@ -249,6 +249,10 @@ def list_transactions(
     type: Annotated[TransactionType | None, Query(description="income or expense")] = None,
     date_from: Annotated[date | None, Query(description="Inclusive lower bound")] = None,
     date_to: Annotated[date | None, Query(description="Inclusive upper bound")] = None,
+    q: Annotated[
+        str | None,
+        Query(max_length=100, description="Case-insensitive substring of the description"),
+    ] = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> Sequence[Transaction]:
@@ -295,6 +299,23 @@ def list_transactions(
         stmt = stmt.where(Transaction.occurred_on >= date_from)
     if date_to is not None:
         stmt = stmt.where(Transaction.occurred_on <= date_to)
+
+    if q:
+        # `ilike` is PostgreSQL's case-insensitive LIKE. Wrapping the term in
+        # `%` makes it a substring match, which is what a search box means.
+        #
+        # Two things this does *not* do, both deliberate. It does not use an
+        # index — a leading wildcard makes a B-tree useless, and the honest fix
+        # when this gets slow is a trigram index or full-text search, not a
+        # cleverer LIKE. And it does not interpolate the term into SQL: the
+        # value is bound as a parameter, so a description containing a quote is
+        # a search for a quote rather than a syntax error or worse.
+        #
+        # The `%` and `_` characters inside the term are still LIKE wildcards
+        # here, which is a mild surprise (searching "50%" matches more than
+        # expected) and not a safety problem. Escaping them costs an `escape`
+        # clause and buys precision nobody has asked for yet.
+        stmt = stmt.where(Transaction.description.ilike(f"%{q}%"))
 
     # `occurred_on DESC` is the order humans want; `id DESC` is the one that
     # makes paging correct. Without a unique tiebreaker, rows sharing a date have

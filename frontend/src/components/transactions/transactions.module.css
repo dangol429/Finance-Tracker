@@ -1,0 +1,286 @@
+/* The ledger table, its inline editor, and the card list it becomes on a phone. */
+
+.wrap {
+  /* The table scrolls horizontally inside its own container rather than making
+     the page scroll. A dashboard whose body slides sideways is the classic
+     responsive failure — everything else on the page moves with it. */
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  /* `fixed` so the columns keep their widths as content changes. With `auto`,
+     editing a description silently re-flows every column and the row appears to
+     jump. */
+  table-layout: fixed;
+  min-width: 760px;
+}
+
+.table th {
+  text-align: left;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  background: var(--bg-surface);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.table td {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+  font-size: var(--text-base);
+  vertical-align: middle;
+}
+
+.row {
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+.row:hover {
+  background: var(--bg-hover);
+}
+
+.row:last-child td {
+  border-bottom: none;
+}
+
+/*
+ * An optimistic row — one that exists on screen but not yet on the server.
+ *
+ * Deliberately subtle. The point of an optimistic update is that the app feels
+ * instant, so a loud "pending" treatment defeats it; but showing *nothing*
+ * means a failed save silently reverts a row the user believed was saved. A
+ * slight transparency is enough to be noticed in hindsight and ignored in the
+ * moment.
+ */
+.rowPending {
+  opacity: 0.55;
+}
+
+.rowEditing {
+  background: var(--bg-hover);
+}
+
+/* Column widths. Set on the header cells, which is all `table-layout: fixed`
+   reads — widths on body cells are ignored. */
+.colDate {
+  width: 108px;
+}
+.colDescription {
+  width: auto;
+}
+.colCategory {
+  width: 150px;
+}
+.colAccount {
+  width: 140px;
+}
+.colAmount {
+  width: 130px;
+}
+.colActions {
+  width: 84px;
+}
+
+.amountCell {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+}
+
+.amountIncome {
+  color: var(--income);
+}
+.amountExpense {
+  color: var(--text-primary);
+}
+
+.dateCell {
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.descriptionCell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.muted {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-1);
+  justify-content: flex-end;
+  /* Hidden until the row is hovered or something inside it has focus. Keeps the
+     table calm; `:focus-within` is what keeps it reachable by keyboard, which a
+     hover-only reveal would not. */
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.row:hover .actions,
+.row:focus-within .actions {
+  opacity: 1;
+}
+
+/* On touch there is no hover, so the reveal would hide the buttons forever. */
+@media (hover: none) {
+  .actions {
+    opacity: 1;
+  }
+}
+
+/* ------------------------------------------------------------- Inline form */
+
+.formRow td {
+  background: var(--bg-raised);
+  padding: var(--space-2) var(--space-3);
+}
+
+.formRow input,
+.formRow select {
+  height: 32px;
+  font-size: var(--text-sm);
+}
+
+.formActions {
+  display: flex;
+  gap: var(--space-1);
+  justify-content: flex-end;
+}
+
+.formError {
+  padding: var(--space-2) var(--space-4) var(--space-3);
+  background: var(--bg-raised);
+  color: var(--danger);
+  font-size: var(--text-sm);
+}
+
+.addBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.count {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+/* Dims the table body while a filter refetch is in flight, without unmounting
+   it — `placeholderData` keeps the previous rows, and this is what tells the
+   user they are looking at slightly stale data. */
+.stale {
+  opacity: 0.55;
+  transition: opacity var(--duration-fast) var(--ease-out);
+  pointer-events: none;
+}
+
+/* --------------------------------------------------------------- Card list */
+
+/*
+ * Below 720px the table becomes a list of cards. This is a different component
+ * tree rather than a restyled table (see `useMediaQuery`): a table squeezed
+ * into 360px is either scrolled sideways or has columns too narrow to read, and
+ * neither is what someone wants on a phone.
+ */
+.cards {
+  display: flex;
+  flex-direction: column;
+}
+
+.card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.card:last-child {
+  border-bottom: none;
+}
+
+.cardTop {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.cardDescription {
+  font-weight: var(--weight-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cardMeta {
+  grid-column: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  flex-wrap: wrap;
+}
+
+.cardAmount {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  align-self: center;
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+}
+
+.cardActions {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+/* ------------------------------------------------------- Mobile form panel */
+
+/*
+ * On a phone the inline `<tr>` editor is unusable — six controls across 360px —
+ * and it cannot be reused anyway, since a `<tr>` is only valid inside a table.
+ * This is the same draft and the same validation in a stacked layout.
+ */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--bg-raised);
+  border-bottom: 1px solid var(--border);
+}
+
+.panelRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+.panelActions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}

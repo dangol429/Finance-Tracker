@@ -1,0 +1,173 @@
+/*
+ * Reset and base styles. The only global stylesheet in the app — everything
+ * else is a CSS Module, so a class name can never leak out of its component.
+ */
+
+@import "./tokens.css";
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+}
+
+html {
+  /* The theme attribute lives here, set by `useTheme` before first paint. */
+  color-scheme: dark;
+  -webkit-text-size-adjust: 100%;
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  color: var(--text-primary);
+  background: var(--bg-base);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Themes swap ~30 variables at once; without this the change is a hard cut.
+     Deliberately not on `*` — a global transition makes every hover in the app
+     feel laggy and is a classic performance mistake. */
+  transition: background-color var(--duration-base) var(--ease-out),
+    color var(--duration-base) var(--ease-out);
+}
+
+#root {
+  min-height: 100vh;
+  min-height: 100dvh; /* dvh accounts for mobile browser chrome that hides on scroll */
+  isolation: isolate;
+}
+
+h1, h2, h3, h4 {
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
+  letter-spacing: -0.011em;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+/*
+ * One focus style for the whole app, and `:focus-visible` rather than `:focus`
+ * so it appears for keyboard users and not on mouse click. Removing the outline
+ * without replacing it is the single most common accessibility failure in a
+ * hand-styled UI — it makes the app unusable by keyboard while looking fine.
+ */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Every number a user might compare against another number lines up. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Visible only to screen readers — used for labels that the visual design
+   carries by position or icon instead of by text. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+::selection {
+  background: var(--accent-subtle);
+  color: var(--text-primary);
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+/* WebKit */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: var(--radius-full);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+  background-clip: content-box;
+}
+
+/*
+ * Honour the OS "reduce motion" setting. This is not a nicety: for people with
+ * vestibular disorders, the mount and count-up animations this app uses to feel
+ * polished can cause actual nausea. Everything still *works* — transitions
+ * collapse to near-instant rather than being removed, so state changes are
+ * still visible, they just don't travel.
+ *
+ * The count-up hook checks the same query in JS and jumps straight to the final
+ * number, because a CSS rule cannot stop a requestAnimationFrame loop.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
