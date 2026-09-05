@@ -32,11 +32,17 @@ import { request } from "./client";
 import type {
   Account,
   AccountCreate,
+  AiQuery,
+  ApplyCategoriesResult,
+  CategorizeParams,
   Category,
+  CategoryAssignment,
   CategoryBreakdown,
   CategoryCreate,
+  CategorySuggestions,
   ImportSummary,
   IncomeVsExpense,
+  MonthlyInsight,
   MonthlySummary,
   SummaryFilters,
   Transaction,
@@ -56,6 +62,8 @@ export const keys = {
   summaryByCategory: (filters: SummaryFilters, type: TransactionType) =>
     ["summary", "by-category", type, filters] as const,
   summaryTotals: (filters: SummaryFilters) => ["summary", "totals", filters] as const,
+  monthlyInsight: (month: string, accountId?: number) =>
+    ["ai", "insight", month, accountId ?? "all"] as const,
 };
 
 /** Everything a write can invalidate, in one place so no mutation forgets one. */
@@ -320,6 +328,110 @@ export function useCreateCategory(): UseMutationResult<Category, Error, Category
       // expense category has to clear the "all" entry and the "expense" one.
       void client.invalidateQueries({ queryKey: ["categories"] });
     },
+  });
+}
+
+// --- AI ---------------------------------------------------------------------
+//
+// **Every call here costs money**, which changes the caching rules that apply
+// to the rest of this file. A summary refetching in the background when a
+// window regains focus is free and desirable; an AI insight doing the same is a
+// paid regeneration of a paragraph the user is already looking at. So the read
+// below opts out of every automatic refetch TanStack Query does by default, and
+// the two writes are mutations — not because they change server state (one of
+// them does not) but because a mutation only ever fires when something calls
+// it.
+
+/**
+ * `POST /ai/query` — a question, an answer, and the evidence behind it.
+ *
+ * A mutation despite being a read, and the reason is the same one that makes
+ * the endpoint a POST: the call is neither idempotent-in-cost nor cacheable. A
+ * `useQuery` keyed on the question text would re-run on remount and on window
+ * focus, quietly billing for an answer already on screen. `useMutation` fires
+ * exactly when `mutate` is called and never on its own.
+ */
+export function useAskAi(): UseMutationResult<AiQuery, Error, string> {
+  return useMutation({
+    mutationFn: (question: string) =>
+      request<AiQuery>("/ai/query", { method: "POST", json: { question } }),
+  });
+}
+
+/**
+ * `POST /ai/categorize` — suggestions only. Writes nothing, so invalidates
+ * nothing.
+ *
+ * The absent `onSuccess` is the point: this mutation deliberately leaves every
+ * cache alone, because the ledger has not changed. Invalidating here would
+ * refetch the transaction list to discover that it is identical — and would
+ * suggest to the next person reading this file that something was written.
+ */
+export function useSuggestCategories(): UseMutationResult<
+  CategorySuggestions,
+  Error,
+  CategorizeParams
+> {
+  return useMutation({
+    mutationFn: (params: CategorizeParams) =>
+      request<CategorySuggestions>("/ai/categorize", { method: "POST", json: params }),
+  });
+}
+
+/** `POST /ai/categorize/apply` — the explicit write, after the user has reviewed. */
+export function useApplyCategories(): UseMutationResult<
+  ApplyCategoriesResult,
+  Error,
+  CategoryAssignment[]
+> {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (assignments: CategoryAssignment[]) =>
+      request<ApplyCategoriesResult>("/ai/categorize/apply", {
+        method: "POST",
+        json: { assignments },
+      }),
+    // This one *does* write, and it changes categories — so the donut, the
+    // category breakdown and the ledger are all now stale. Same invalidation
+    // every other write in this file performs, for the same reason.
+    onSuccess: () => invalidateAfterWrite(client),
+  });
+}
+
+/**
+ * `GET /ai/insights/monthly` — the write-up for one month.
+ *
+ * `enabled` gates it behind an explicit request rather than firing on mount.
+ * The dashboard mounts on every visit and this is a paid call, so generating an
+ * insight nobody asked to see would bill the user for scrolling past a card.
+ *
+ * The staleness settings are unusually aggressive for this file, and
+ * deliberately: a month that has ended cannot produce a different answer, so
+ * `Infinity` is not a heuristic here, it is a fact about the data. The refetch
+ * opt-outs cover the ways TanStack Query would otherwise regenerate it for
+ * free-feeling reasons — a tab switch, a reconnect, a remount when the user
+ * navigates back to the dashboard.
+ */
+export function useMonthlyInsight(
+  month: string,
+  accountId: number | undefined,
+  enabled: boolean,
+): UseQueryResult<MonthlyInsight> {
+  return useQuery({
+    queryKey: keys.monthlyInsight(month, accountId),
+    queryFn: () =>
+      request<MonthlyInsight>("/ai/insights/monthly", {
+        params: { month, account_id: accountId },
+      }),
+    enabled,
+    staleTime: Infinity,
+    gcTime: 30 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    // A 503 means the server has no API key configured — retrying will not
+    // conjure one, and three attempts just delay the message explaining it.
+    retry: false,
   });
 }
 

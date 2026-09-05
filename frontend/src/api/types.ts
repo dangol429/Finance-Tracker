@@ -211,3 +211,106 @@ export interface ImportSummary {
   errors: RowError[];
   errors_truncated: boolean;
 }
+
+// --- AI ---------------------------------------------------------------------
+//
+// Three features, one shared property worth stating once: **every response here
+// carries the data its prose was built from.** The server computes every figure
+// in SQL and returns it alongside the text, so a number on screen can be traced
+// to a query rather than trusted. The types below make that structural — a
+// component cannot render the answer without also having been handed the
+// evidence, which is what stops the grounding from quietly being dropped the
+// first time someone simplifies a prop.
+
+export interface AiUsage {
+  input_tokens: number;
+  output_tokens: number;
+}
+
+/** One tool call the model made, and exactly what SQL returned for it. */
+export interface EvidenceStep {
+  tool: string;
+  /** The structured query the model emitted — dates, category ids, grouping. */
+  arguments: Record<string, unknown>;
+  /** Whatever that query returned. Shape varies by tool, hence `unknown`. */
+  result: unknown;
+}
+
+export interface AiQuery {
+  question: string;
+  answer: string;
+  /** Empty when the model answered without querying — see `AskPage`. */
+  evidence: EvidenceStep[];
+  model: string;
+  usage: AiUsage;
+}
+
+export interface CategorySuggestion {
+  transaction_id: number;
+  description: string | null;
+  amount: string;
+  type: TransactionType;
+  occurred_on: string;
+  category_id: number;
+  category_name: string;
+  /** 0–1, the model's own estimate. Not a measurement — render it as a band. */
+  confidence: number;
+  reasoning: string;
+  /** Whether confidence met the threshold. Drives the checkbox default. */
+  recommended: boolean;
+}
+
+export interface SkippedTransaction {
+  transaction_id: number;
+  description: string | null;
+  reason: string;
+}
+
+export interface CategorySuggestions {
+  considered: number;
+  suggestions: CategorySuggestion[];
+  /** `suggestions.length + skipped.length === considered`, always. */
+  skipped: SkippedTransaction[];
+  min_confidence: number;
+  model: string;
+  usage: AiUsage;
+}
+
+export interface CategorizeParams {
+  transaction_ids?: number[];
+  limit?: number;
+  account_id?: number;
+  min_confidence?: number;
+}
+
+export interface CategoryAssignment {
+  transaction_id: number;
+  category_id: number;
+}
+
+export interface ApplyCategoriesResult {
+  updated: number;
+  transactions: Transaction[];
+}
+
+/** The aggregates the write-up was generated from — the same objects
+ *  `/summary/income-vs-expense` and `/summary/by-category` return. */
+export interface MonthlyInsightFacts {
+  month: string;
+  previous_month: string;
+  totals: IncomeVsExpense;
+  previous_totals: IncomeVsExpense;
+  categories: CategoryBreakdown;
+  previous_categories: CategoryBreakdown;
+}
+
+export interface MonthlyInsight {
+  month: string;
+  headline: string;
+  summary: string;
+  highlights: string[];
+  facts: MonthlyInsightFacts;
+  /** Both null when the month was empty: the text is then fixed, not generated. */
+  model: string | null;
+  usage: AiUsage | null;
+}

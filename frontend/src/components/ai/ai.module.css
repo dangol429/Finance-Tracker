@@ -1,0 +1,462 @@
+/*
+ * Styles for the three AI surfaces.
+ *
+ * One visual rule runs through all of them: **generated text is marked, and the
+ * data behind it is never further than one click away.** The `aiMark` badge
+ * appears on every block a model wrote, and the evidence/facts disclosures sit
+ * directly beneath the prose rather than on a separate screen. A user who
+ * doubts a number should not have to go looking for the receipt.
+ *
+ * Everything below is built from the tokens in styles/tokens.css, so both
+ * themes are handled by the variables rather than by a second set of rules
+ * here — the same approach the rest of the app takes.
+ */
+
+/* --- Shared: the "written by a model" marker ----------------------------- */
+
+.aiMark {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--accent-subtle);
+  color: var(--accent);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+}
+
+/* The variant for text the *server* generated deterministically — an empty
+   month's summary. Visually distinct because claiming a fixed sentence was
+   AI-written is a small lie that erodes the marker's meaning everywhere else. */
+.aiMarkStatic {
+  background: var(--bg-hover);
+  color: var(--text-muted);
+}
+
+/* --- Ask page ------------------------------------------------------------ */
+
+.askForm {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+}
+
+.askInput {
+  flex: 1;
+  min-width: 0;
+}
+
+.suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.suggestionChip {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-family: inherit;
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+}
+
+.suggestionChip:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.answer {
+  font-size: var(--text-md);
+  line-height: var(--leading-normal);
+  color: var(--text-primary);
+  /* Answers are one to three sentences of plain prose — `pre-wrap` keeps any
+     line break the model produced without needing a markdown renderer for
+     text that is deliberately not markdown. */
+  white-space: pre-wrap;
+  margin: 0;
+}
+
+.answerMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* --- Evidence ------------------------------------------------------------ */
+
+.evidence {
+  margin-top: var(--space-3);
+}
+
+.evidenceToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+
+.evidenceToggle:hover {
+  text-decoration: underline;
+}
+
+.evidenceBody {
+  margin-top: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.evidenceStep {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.evidenceHeader {
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-hover);
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  /* A tool call with several filters is long. Scrolling it inside its own box
+     is what keeps the page from scrolling sideways on a phone. */
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.evidenceTableWrap {
+  overflow-x: auto;
+}
+
+.evidenceTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.evidenceTable th,
+.evidenceTable td {
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.evidenceTable th {
+  font-weight: var(--weight-medium);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.evidenceTable tr:last-child td {
+  border-bottom: none;
+}
+
+.numeric {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.evidenceTotal {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Insights card ------------------------------------------------------- */
+
+.insightHeadline {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
+  color: var(--text-primary);
+}
+
+.insightSummary {
+  margin: 0;
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  color: var(--text-secondary);
+}
+
+.highlights {
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.highlight {
+  position: relative;
+  padding-left: var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.highlight::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.55em;
+  width: 5px;
+  height: 5px;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+}
+
+.factsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.fact {
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-base);
+}
+
+.factLabel {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin-bottom: var(--space-1);
+}
+
+.factValue {
+  display: block;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.factDelta {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Categorisation review ---------------------------------------------- */
+
+.reviewIntro {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin: 0 0 var(--space-4);
+}
+
+.reviewList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  /* The panel holds up to fifty rows. Scrolling the list rather than the modal
+     keeps the accept/cancel buttons reachable without a scroll to the bottom. */
+  max-height: min(52vh, 420px);
+  overflow-y: auto;
+  padding-right: var(--space-1);
+}
+
+.reviewRow {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: var(--space-3);
+  align-items: start;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-base);
+}
+
+.reviewRowChecked {
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+}
+
+.reviewCheckbox {
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.reviewMain {
+  min-width: 0;
+}
+
+.reviewDescription {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--text-primary);
+  /* Bank descriptions run long and arrive without spaces. Truncating keeps one
+     transaction to one row; the full text is in the `title` attribute. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reviewMeta {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.reviewReasoning {
+  display: block;
+  margin-top: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  font-style: italic;
+  white-space: normal;
+}
+
+.reviewChoice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: flex-end;
+}
+
+.confidence {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.confidenceBar {
+  width: 36px;
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: var(--bg-active);
+  overflow: hidden;
+}
+
+.confidenceFill {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-full);
+}
+
+.confidenceHigh {
+  background: var(--income);
+}
+
+.confidenceLow {
+  background: var(--warning);
+}
+
+.skippedBlock {
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+.skippedTitle {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.skippedItem {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  padding: 2px 0;
+}
+
+.reviewActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+/* --- The review modal ---------------------------------------------------- */
+/*
+ * A wider shell than `ConfirmDialog`'s, because this one holds a scrolling list
+ * of rows rather than a sentence and two buttons. It reuses that component's
+ * backdrop class so the overlay, the blur and the z-index stay defined in one
+ * place — only the panel's own dimensions differ.
+ */
+
+.reviewPanel {
+  width: min(720px, calc(100vw - var(--space-6)));
+  max-height: calc(100vh - var(--space-8));
+  overflow-y: auto;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-5);
+}
+
+.reviewPanelTitle {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+
+@media (max-width: 640px) {
+  .reviewRow {
+    grid-template-columns: auto 1fr;
+  }
+
+  /* The confidence/category column drops below the description rather than
+     squeezing both into a 320px viewport. */
+  .reviewChoice {
+    grid-column: 2;
+    align-items: flex-start;
+  }
+
+  .askForm {
+    flex-direction: column;
+  }
+
+  .askForm > button {
+    width: 100%;
+  }
+}

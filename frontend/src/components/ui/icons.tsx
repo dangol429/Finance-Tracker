@@ -162,3 +162,29 @@ export const UploadIcon = (props: IconProps) => (
     <path d="m7 9 5-5 5 5M12 4v12" />
   </Svg>
 );
+
+/** Marks anything AI-generated. Used consistently so "a model wrote this" is a
+ *  visual property a user can learn once rather than read for every time. */
+export const SparkleIcon = (props: IconProps) => (
+  <Svg {...props}>
+    <path d="M12 3v4M12 17v4M3 12h4M17 12h4" />
+    <path d="M12 8a4 4 0 0 0 4 4 4 4 0 0 0-4 4 4 4 0 0 0-4-4 4 4 0 0 0 4-4Z" />
+  </Svg>
+);
+
+/** The evidence disclosure on the Ask page — "show me where that number came
+ *  from". A magnifier over a document rather than a chevron, because the
+ *  content it reveals is a receipt, not just more text. */
+export const ReceiptIcon = (props: IconProps) => (
+  <Svg {...props}>
+    <path d="M5 3v18l2.5-1.5L10 21l2-1.5L14 21l2.5-1.5L19 21V3Z" />
+    <path d="M9 8h6M9 12h6" />
+  </Svg>
+);
+
+/** "Send" on the question box. */
+export const SendIcon = (props: IconProps) => (
+  <Svg {...props}>
+    <path d="M4 12 20 4l-8 16-2-6Z" />
+  </Svg>
+);

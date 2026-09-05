@@ -9,6 +9,7 @@ import {
   LogoutIcon,
   MenuIcon,
   MoonIcon,
+  SparkleIcon,
   SunIcon,
   WalletIcon,
 } from "@/components/ui/icons";
@@ -18,11 +19,13 @@ import styles from "./layout.module.css";
 const NAV_ITEMS = [
   { to: "/", label: "Dashboard", icon: DashboardIcon, end: true },
   { to: "/transactions", label: "Transactions", icon: LedgerIcon, end: false },
+  { to: "/ask", label: "Ask", icon: SparkleIcon, end: false },
 ];
 
 const PAGE_TITLES: Record<string, string> = {
   "/": "Dashboard",
   "/transactions": "Transactions",
+  "/ask": "Ask",
 };
 
 export function AppShell(): JSX.Element {

@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 
 import { RequireAnonymous, RequireAuth } from "@/auth/ProtectedRoute";
 import { AppShell } from "@/components/layout/AppShell";
+import { AskPage } from "@/pages/AskPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { LoginPage } from "@/pages/LoginPage";
 import { SignupPage } from "@/pages/SignupPage";
@@ -28,10 +29,15 @@ export function App(): JSX.Element {
         <Route element={<AppShell />}>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/transactions" element={<TransactionsPage />} />
+          {/* Added inside the guard, which is the whole point of the layout
+              route above: this page reads the user's transactions, and it is
+              protected because of where it sits rather than because anyone
+              remembered to protect it. */}
+          <Route path="/ask" element={<AskPage />} />
         </Route>
       </Route>
 
-      {/* Anything else goes home rather than to a 404 page. This app has two
+      {/* Anything else goes home rather than to a 404 page. This app has three
           screens; a dedicated not-found page would be more ceremony than the
           situation deserves, and an unknown URL here is nearly always a stale
           link rather than a typo worth explaining. */}

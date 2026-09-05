@@ -83,6 +83,51 @@ class Settings(BaseSettings):
     # revocation has something to revoke — a later milestone.)
     access_token_expire_minutes: int = 30
 
+    # --- AI (Anthropic) ---
+    # The key the Anthropic SDK authenticates with. Declared here rather than
+    # left to the SDK's own `ANTHROPIC_API_KEY` lookup for one reason: the app
+    # needs to know whether AI is configured *before* it makes a call. With the
+    # key only in os.environ, a deployment that forgot it discovers the problem
+    # as a 500 from deep inside the SDK, on a request a user was waiting on. As
+    # a field, "is this configured" is a boolean the router can check and answer
+    # 503 to — and the frontend can hide the feature rather than offer a button
+    # that always fails.
+    #
+    # Optional, and that is the point: every endpoint outside `/ai` works
+    # perfectly without it. The AI layer is an addition to this app, not a
+    # dependency of it, and the configuration says so.
+    anthropic_api_key: str | None = None
+
+    # Pinned in configuration, not hardcoded at the call sites, so the model can
+    # be changed in one place — and so the *response* can report which model
+    # produced it. An AI answer whose provenance isn't recorded is one nobody
+    # can reproduce or explain later.
+    anthropic_model: str = "claude-opus-5"
+
+    # A ceiling on the response, not a target. Generous because hitting the cap
+    # truncates an answer mid-sentence, which costs a whole retry; and because
+    # thinking tokens are drawn from the same budget.
+    ai_max_tokens: int = 8192
+
+    # How long to wait on the API before giving up. The SDK's own default is ten
+    # minutes, which is right for a batch job and wrong for a request with a
+    # person waiting on the other end: they will have reloaded the page nine
+    # minutes earlier. Sixty seconds is long enough for a thinking model on a
+    # hard question and short enough that a hung call surfaces as an error
+    # rather than as a browser tab that never settles.
+    ai_timeout_seconds: float = 60.0
+
+    @property
+    def ai_enabled(self) -> bool:
+        """Whether the AI endpoints can serve anything.
+
+        A property rather than a separate `AI_ENABLED` flag, so there is exactly
+        one way for the feature to be on. Two switches — a boolean *and* a key —
+        is how you get a deployment with `AI_ENABLED=true` and no credentials,
+        which fails at the worst possible moment instead of at boot.
+        """
+        return bool(self.anthropic_api_key)
+
     # --- CORS ---
     # Which browser origins may call this API.
     #

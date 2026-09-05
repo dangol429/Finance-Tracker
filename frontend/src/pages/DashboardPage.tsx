@@ -7,6 +7,7 @@ import {
   useMonthlySummary,
   useTotals,
 } from "@/api/queries";
+import { InsightsCard } from "@/components/ai/InsightsCard";
 import { CategoryDonut } from "@/components/dashboard/CategoryDonut";
 import { IncomeVsExpenseBars } from "@/components/dashboard/IncomeVsExpenseBars";
 import { MonthlyTrend } from "@/components/dashboard/MonthlyTrend";
@@ -57,6 +58,18 @@ export function DashboardPage(): JSX.Element {
       savingsRate: totals.data?.savings_rate,
     };
   }, [totals.data, monthly.data, breakdown.data]);
+
+  // Which month the AI summary describes: the last one in the filtered range,
+  // which is the month the charts above are already ending on. Derived from the
+  // data rather than from `filters.dateTo` so the two cannot disagree — a range
+  // ending mid-month still summarises that month, and an empty result falls
+  // back to the current one rather than rendering a card with no month at all.
+  const insightMonth = useMemo(() => {
+    const last = monthly.data?.months.at(-1)?.month;
+    if (last) return last;
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  }, [monthly.data]);
 
   // Only the *first* load shows skeletons. A refetch caused by a filter change
   // keeps the previous data on screen and dims it instead (`placeholderData` in
@@ -147,6 +160,12 @@ export function DashboardPage(): JSX.Element {
           }
         />
       </div>
+
+      {/* Placed after the stat cards and before the charts: the summary reads
+          as a caption for the numbers above it, and a user who wants only the
+          figures never has to scroll past a paragraph to reach them. It
+          generates nothing until asked — see the note in `InsightsCard`. */}
+      <InsightsCard month={insightMonth} accountId={summaryParams.account_id} />
 
       <MonthlyTrend
         data={monthly.data}

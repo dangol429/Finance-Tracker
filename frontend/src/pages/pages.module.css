@@ -71,6 +71,27 @@
   line-height: var(--leading-normal);
 }
 
+/* The "suggest categories" prompt above the ledger. A row rather than a bare
+   button so the count sits beside the action — the number is what makes the
+   button worth pressing, and separating them would leave a control with no
+   stated reason to exist. */
+.aiActionRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+
+.aiActionNote {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
 @keyframes pageIn {
   from {
     opacity: 0;

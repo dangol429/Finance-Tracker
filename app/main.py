@@ -17,6 +17,7 @@ import app.models  # noqa: F401
 from app.core.config import settings
 from app.routers import (
     accounts,
+    ai,
     auth,
     categories,
     csv_import,
@@ -103,3 +104,16 @@ app.include_router(summary.router)
 # registered user owns no account and `POST /transactions` requires one.
 app.include_router(accounts.router)
 app.include_router(categories.router)
+
+# The AI layer: natural-language queries, category suggestions, monthly
+# insights. One more file, one more line — and worth noting what did *not* have
+# to change for it. No new middleware, no new authentication wiring, no new
+# database tables: these routes read the same rows through the same ownership
+# scope as everything above, and their handlers are protected by asking for
+# `CurrentUser` exactly as the others do.
+#
+# It is also the only router here that can be switched off. Its routes depend on
+# `AiClient`, which answers 503 when `ANTHROPIC_API_KEY` is unset, so a
+# deployment without a key serves the entire rest of this API normally. An
+# optional feature should be optional at runtime and not only at build time.
+app.include_router(ai.router)

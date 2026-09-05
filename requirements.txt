@@ -28,3 +28,13 @@ python-multipart==0.0.20
 # Backs Pydantic's `EmailStr`. Pydantic keeps it optional because the dependency
 # does real DNS-capable parsing, so you opt in only if you use the type.
 email-validator==2.2.0
+
+# AI: the official Anthropic SDK, used by app/ai/.
+#
+# Not a soft dependency despite the feature being optional. The app imports it
+# at startup (app/ai/client.py) and decides at *request* time whether it can be
+# used, based on whether a key is configured — so the package must always be
+# installed, and only the credential is optional. A conditional import guarded
+# by a try/except would make "AI is off" and "the image was built wrong"
+# indistinguishable, which is the kind of ambiguity that costs an afternoon.
+anthropic==1.4.0
